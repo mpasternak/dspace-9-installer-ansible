@@ -1,0 +1,79 @@
+---
+- name: Build and Deploy DSpace Angular Frontend
+  hosts: dspace_servers
+  become: yes
+
+  pre_tasks:
+    - name: Check if configuration exists
+      stat:
+        path: "{{ dspace_frontend_config_dir }}/config.prod.yml"
+      register: config_check
+
+    - name: Fail if not configured
+      fail:
+        msg: "Frontend configuration not found. Please run 'make install-frontend-config' first"
+      when: not config_check.stat.exists
+
+  tasks:
+    - name: Include build tasks
+      include_role:
+        name: dspace-frontend
+        tasks_from: build
+
+  post_tasks:
+    - name: Include nginx role for proxy setup
+      include_role:
+        name: nginx
+
+    - name: Ensure nginx is reloaded
+      systemd:
+        name: nginx
+        state: reloaded
+
+    - name: Display PM2 process status
+      command: pm2 list
+      become_user: "{{ dspace_user }}"
+      register: pm2_status
+      changed_when: false
+
+    - name: Show PM2 status
+      debug:
+        var: pm2_status.stdout_lines
+
+    - name: Test nginx proxy to frontend
+      uri:
+        url: "http://{{ domain_name }}/"
+        method: GET
+        status_code: 200
+        timeout: 30
+        follow_redirects: all
+      register: nginx_test
+      ignore_errors: yes
+      when: domain_name != "dspace.example.com"
+
+    - name: Display build complete message
+      debug:
+        msg:
+          - "================================================"
+          - " Frontend Build and Deployment Complete!"
+          - "================================================"
+          - ""
+          - "Frontend Access URLs:"
+          - "  Direct: http://localhost:{{ dspace_frontend_port }}"
+          - "  Via Nginx: https://{{ domain_name }}/ (or http:// if SSL not enabled)"
+          - ""
+          - "Backend API Access:"
+          - "  REST API: {{ dspace_server_url }}/api"
+          - "  Via Nginx: https://{{ domain_name }}/server/api"
+          - ""
+          - "PM2 Process Management:"
+          - "  Status: sudo -u {{ dspace_user }} pm2 status"
+          - "  Logs: sudo -u {{ dspace_user }} pm2 logs {{ pm2_app_name }}"
+          - "  Restart: sudo -u {{ dspace_user }} pm2 restart {{ pm2_app_name }}"
+          - "  Stop: sudo -u {{ dspace_user }} pm2 stop {{ pm2_app_name }}"
+          - ""
+          - "Next Steps:"
+          - "  1. Update your DNS to point to this server"
+          - "  2. Configure SSL certificates if not already done"
+          - "  3. Monitor logs for any issues"
+          - "================================================"

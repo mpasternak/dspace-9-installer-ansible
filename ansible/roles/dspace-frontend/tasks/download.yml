@@ -1,0 +1,38 @@
+---
+# Download and extract DSpace Angular source
+
+- name: Create frontend source directory
+  file:
+    path: "{{ dspace_frontend_source_dir }}"
+    state: directory
+    owner: "{{ dspace_user }}"
+    group: "{{ dspace_group }}"
+    mode: '0755'
+
+- name: Download DSpace Angular from release
+  block:
+    - name: Download DSpace Angular release
+      unarchive:
+        src: "{{ dspace_frontend_release_url }}"
+        dest: /tmp
+        remote_src: yes
+        owner: "{{ dspace_user }}"
+        group: "{{ dspace_group }}"
+      register: download_result
+
+    - name: Move extracted files to source directory
+      shell: |
+        mv /tmp/dspace-angular-dspace-{{ dspace_frontend_version }}/* {{ dspace_frontend_source_dir }}/
+        rm -rf /tmp/dspace-angular-dspace-{{ dspace_frontend_version }}
+      args:
+        creates: "{{ dspace_frontend_source_dir }}/package.json"
+  when: dspace_frontend_source_type == "release"
+
+- name: Clone DSpace Angular from GitHub
+  git:
+    repo: "{{ dspace_frontend_github_repo }}"
+    dest: "{{ dspace_frontend_source_dir }}"
+    version: "{{ dspace_frontend_github_branch }}"
+    force: yes
+  become_user: "{{ dspace_user }}"
+  when: dspace_frontend_source_type == "github"

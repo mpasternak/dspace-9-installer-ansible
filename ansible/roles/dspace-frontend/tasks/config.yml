@@ -1,0 +1,28 @@
+---
+# Configure DSpace Angular frontend
+
+- name: Create production configuration
+  template:
+    src: config.prod.yml.j2
+    dest: "{{ dspace_frontend_config_dir }}/config.prod.yml"
+    owner: "{{ dspace_user }}"
+    group: "{{ dspace_group }}"
+    mode: '0644'
+  notify: restart dspace-frontend
+
+- name: Create PM2 ecosystem configuration
+  template:
+    src: dspace-ui.json.j2
+    dest: "{{ dspace_frontend_source_dir }}/dspace-ui.json"
+    owner: "{{ dspace_user }}"
+    group: "{{ dspace_group }}"
+    mode: '0644'
+  notify: restart dspace-frontend
+
+- name: Create symlink to frontend directory
+  file:
+    src: "{{ dspace_frontend_source_dir }}"
+    dest: "{{ dspace_frontend_install_dir }}"
+    state: link
+    owner: "{{ dspace_user }}"
+    group: "{{ dspace_group }}"

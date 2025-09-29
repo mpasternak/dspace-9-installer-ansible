@@ -1,5 +1,5 @@
 ---
-- name: Install DSpace Frontend (Angular UI)
+- name: Install DSpace Frontend (Angular UI) - Complete Installation
   hosts: dspace_servers
   become: yes
 
@@ -24,6 +24,7 @@
           when: backend_check.status != 200
 
   roles:
+    # This role now includes all steps: prerequisites, download, config, build
     - dspace-frontend
     - nginx
 

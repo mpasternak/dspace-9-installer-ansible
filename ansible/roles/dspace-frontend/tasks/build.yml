@@ -1,0 +1,87 @@
+---
+# Build and deploy DSpace Angular frontend
+
+# Install dependencies and build
+- name: Install npm dependencies
+  npm:
+    path: "{{ dspace_frontend_source_dir }}"
+    state: present
+  become_user: "{{ dspace_user }}"
+  environment:
+    NODE_OPTIONS: "--max-old-space-size=4096"
+
+- name: Build DSpace Angular for production
+  command: npm run build:prod
+  args:
+    chdir: "{{ dspace_frontend_source_dir }}"
+  become_user: "{{ dspace_user }}"
+  environment:
+    NODE_OPTIONS: "--max-old-space-size=4096"
+    NODE_ENV: "production"
+  register: build_result
+  changed_when: true
+
+# Configure PM2 service
+- name: Start DSpace frontend with PM2
+  command: pm2 start dspace-ui.json
+  args:
+    chdir: "{{ dspace_frontend_source_dir }}"
+  become_user: "{{ dspace_user }}"
+  register: pm2_start
+  changed_when: "'online' in pm2_start.stdout"
+  ignore_errors: yes
+
+- name: Save PM2 process list
+  command: pm2 save
+  become_user: "{{ dspace_user }}"
+  changed_when: true
+
+- name: Generate PM2 startup script
+  command: pm2 startup systemd -u {{ dspace_user }} --hp /home/{{ dspace_user }}
+  register: pm2_startup
+  changed_when: true
+
+- name: Enable PM2 startup on boot
+  shell: "{{ pm2_startup.stdout_lines[-1] }}"
+  when: pm2_startup.stdout_lines | length > 0
+  become: yes
+  changed_when: true
+
+- name: Ensure PM2 service is enabled
+  systemd:
+    name: pm2-{{ dspace_user }}
+    enabled: yes
+    state: started
+    daemon_reload: yes
+  ignore_errors: yes
+
+# Verification
+- name: Wait for frontend to be ready
+  wait_for:
+    port: "{{ dspace_frontend_port }}"
+    host: localhost
+    delay: 10
+    timeout: 60
+  register: frontend_ready
+
+- name: Test frontend endpoint
+  uri:
+    url: "http://localhost:{{ dspace_frontend_port }}/"
+    method: GET
+    status_code: 200
+    timeout: 30
+  register: frontend_test
+  retries: 3
+  delay: 10
+  until: frontend_test.status == 200
+  ignore_errors: yes
+
+- name: Display frontend status
+  debug:
+    msg:
+      - "DSpace Frontend Status:"
+      - "  URL: http://localhost:{{ dspace_frontend_port }}"
+      - "  Status: {{ 'Running' if frontend_test.status == 200 else 'Not responding' }}"
+      - "  PM2 App Name: {{ pm2_app_name }}"
+      - "  Process Manager: PM2"
+  when: frontend_test is defined

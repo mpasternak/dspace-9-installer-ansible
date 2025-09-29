@@ -94,24 +94,15 @@
   become_user: "{{ dspace_user }}"
   register: create_admin
 
-- name: Deploy DSpace server webapp to Tomcat
+- name: Deploy DSpace server webapp via Tomcat context
   copy:
-    src: "{{ dspace_install_dir }}/webapps/server"
-    dest: "{{ tomcat_home }}/webapps/"
+    content: |
+      <?xml version='1.0'?>
+      <Context docBase="{{ dspace_install_dir }}/webapps/server"/>
+    dest: "{{ tomcat_home }}/conf/Catalina/localhost/server.xml"
     owner: "{{ tomcat_user }}"
     group: "{{ tomcat_group }}"
-    mode: '0755'
-    remote_src: yes
-  notify: restart tomcat
-
-- name: Deploy DSpace REST webapp to Tomcat
-  copy:
-    src: "{{ dspace_install_dir }}/webapps/server"
-    dest: "{{ tomcat_home }}/webapps/ROOT"
-    owner: "{{ tomcat_user }}"
-    group: "{{ tomcat_group }}"
-    mode: '0755'
-    remote_src: yes
+    mode: '0644'
   notify: restart tomcat
 
 - name: Flush handlers to restart services

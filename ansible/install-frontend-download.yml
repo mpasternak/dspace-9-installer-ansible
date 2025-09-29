@@ -1,0 +1,40 @@
+---
+- name: Download and Extract DSpace Angular Frontend
+  hosts: dspace_servers
+  become: yes
+
+  pre_tasks:
+    - name: Check if Node.js is installed
+      command: which node
+      register: node_check
+      failed_when: false
+      changed_when: false
+
+    - name: Fail if prerequisites not installed
+      fail:
+        msg: "Node.js is not installed. Please run 'make install-frontend-prerequisites' first"
+      when: node_check.rc != 0
+
+  tasks:
+    - name: Include download tasks
+      include_role:
+        name: dspace-frontend
+        tasks_from: download
+
+  post_tasks:
+    - name: Verify download
+      stat:
+        path: "{{ dspace_frontend_source_dir }}/package.json"
+      register: package_json
+
+    - name: Display download status
+      debug:
+        msg:
+          - "================================================"
+          - " Frontend Source Downloaded!"
+          - "================================================"
+          - "Source location: {{ dspace_frontend_source_dir }}"
+          - "Download type: {{ dspace_frontend_source_type }}"
+          - "Version: {{ dspace_frontend_version }}"
+          - "Package.json exists: {{ package_json.stat.exists }}"
+          - "================================================"

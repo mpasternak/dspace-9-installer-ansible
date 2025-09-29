@@ -1,0 +1,37 @@
+---
+- name: Install DSpace Frontend Prerequisites (Node.js and PM2)
+  hosts: dspace_servers
+  become: yes
+
+  tasks:
+    - name: Include prerequisites tasks
+      include_role:
+        name: dspace-frontend
+        tasks_from: prerequisites
+
+  post_tasks:
+    - name: Verify Node.js installation
+      command: node --version
+      register: node_version
+      changed_when: false
+
+    - name: Verify npm installation
+      command: npm --version
+      register: npm_version
+      changed_when: false
+
+    - name: Verify PM2 installation
+      command: pm2 --version
+      register: pm2_version
+      changed_when: false
+
+    - name: Display installed versions
+      debug:
+        msg:
+          - "================================================"
+          - " Frontend Prerequisites Installed!"
+          - "================================================"
+          - "Node.js version: {{ node_version.stdout }}"
+          - "npm version: {{ npm_version.stdout }}"
+          - "PM2 version: {{ pm2_version.stdout }}"
+          - "================================================"

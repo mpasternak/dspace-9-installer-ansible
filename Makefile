@@ -135,6 +135,17 @@ install-prerequisites: ## Install DSpace prerequisites (Java, PostgreSQL, Solr, 
 	@echo ""
 	@echo "✅ Prerequisites installation complete!"
 
+install-firefox: ## Install Firefox from Mozilla's official APT repository
+	@echo ""
+	@echo "╔══════════════════════════════════════════════════════════╗"
+	@echo "║             Installing Firefox                           ║"
+	@echo "╚══════════════════════════════════════════════════════════╝"
+	@echo ""
+	@echo "🦊 Installing Firefox from Mozilla's official repository..."
+	@cd $(ANSIBLE_PLAYBOOK_DIR) && ansible-playbook $(ANSIBLE_VERBOSE) -i $(ANSIBLE_INVENTORY) install-firefox.yml
+	@echo ""
+	@echo "✅ Firefox installation complete!"
+
 install-dspace: ## Install DSpace backend application (all steps)
 	@echo ""
 	@echo "╔══════════════════════════════════════════════════════════╗"
@@ -224,13 +235,54 @@ dspace-github: ## Install DSpace from GitHub branch (usage: make dspace-github B
 		-e "dspace_source_type=github" -e "dspace_github_branch=$(BRANCH)"
 
 # Frontend targets
-install-frontend: ## Install DSpace Angular frontend with Node.js and PM2
+install-frontend-prerequisites: ## Install frontend prerequisites (Node.js, PM2, build tools)
+	@echo ""
+	@echo "╔══════════════════════════════════════════════════════════╗"
+	@echo "║       Installing Frontend Prerequisites                   ║"
+	@echo "╚══════════════════════════════════════════════════════════╝"
+	@echo ""
+	@cd $(ANSIBLE_PLAYBOOK_DIR) && ansible-playbook $(ANSIBLE_VERBOSE) -i $(ANSIBLE_INVENTORY) install-frontend-prerequisites.yml
+	@echo ""
+	@echo "✅ Prerequisites installed successfully!"
+
+install-frontend-download: ## Download and extract DSpace Angular source
+	@echo ""
+	@echo "╔══════════════════════════════════════════════════════════╗"
+	@echo "║       Downloading DSpace Angular Frontend                 ║"
+	@echo "╚══════════════════════════════════════════════════════════╝"
+	@echo ""
+	@cd $(ANSIBLE_PLAYBOOK_DIR) && ansible-playbook $(ANSIBLE_VERBOSE) -i $(ANSIBLE_INVENTORY) install-frontend-download.yml
+	@echo ""
+	@echo "✅ Frontend source downloaded successfully!"
+
+install-frontend-config: ## Configure DSpace Angular frontend
+	@echo ""
+	@echo "╔══════════════════════════════════════════════════════════╗"
+	@echo "║       Configuring DSpace Angular Frontend                 ║"
+	@echo "╚══════════════════════════════════════════════════════════╝"
+	@echo ""
+	@cd $(ANSIBLE_PLAYBOOK_DIR) && ansible-playbook $(ANSIBLE_VERBOSE) -i $(ANSIBLE_INVENTORY) install-frontend-config.yml
+	@echo ""
+	@echo "✅ Frontend configured successfully!"
+
+install-frontend-build: ## Build and deploy DSpace Angular frontend
+	@echo ""
+	@echo "╔══════════════════════════════════════════════════════════════════════════════╗"
+	@echo "║       Building DSpace Angular Frontend                                        ║"
+	@echo "╚══════════════════════════════════════════════════════════════════════════════╝"
+	@echo ""
+	@echo "⚠️  This may take 10-15 minutes depending on your system..."
+	@cd $(ANSIBLE_PLAYBOOK_DIR) && ansible-playbook $(ANSIBLE_VERBOSE) -i $(ANSIBLE_INVENTORY) install-frontend-build.yml
+	@echo ""
+	@echo "✅ Frontend built and deployed successfully!"
+
+install-frontend: ## Install DSpace Angular frontend (runs all frontend steps)
 	@echo ""
 	@echo "╔══════════════════════════════════════════════════════════╗"
 	@echo "║        Installing DSpace Frontend (Angular UI)           ║"
 	@echo "╚══════════════════════════════════════════════════════════╝"
 	@echo ""
-	@echo "🚀 Installing DSpace Angular frontend..."
+	@echo "🚀 Installing DSpace Angular frontend (all steps)..."
 	@cd $(ANSIBLE_PLAYBOOK_DIR) && ansible-playbook $(ANSIBLE_VERBOSE) -i $(ANSIBLE_INVENTORY) install-frontend.yml
 	@echo ""
 	@echo "✅ DSpace frontend installation complete!"

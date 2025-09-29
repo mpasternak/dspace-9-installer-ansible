@@ -47,3 +47,4 @@ The `update-system.yml` playbook:
 - The framework checks `/var/run/reboot-required` to determine if a reboot is needed after updates
 - Reboot is handled gracefully with configurable timeouts and connection recovery
 - Suitable for local development environments on macOS machines
+- To verify anything on the server for development, use: `ssh admin@$(tart ip dspace-server)`

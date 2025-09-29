@@ -1,0 +1,63 @@
+---
+- name: Configure DSpace Angular Frontend
+  hosts: dspace_servers
+  become: yes
+
+  pre_tasks:
+    - name: Check if frontend source exists
+      stat:
+        path: "{{ dspace_frontend_source_dir }}/package.json"
+      register: source_check
+
+    - name: Fail if source not downloaded
+      fail:
+        msg: "Frontend source not found. Please run 'make install-frontend-download' first"
+      when: not source_check.stat.exists
+
+    - name: Check if backend is installed
+      block:
+        - name: Check DSpace backend API
+          uri:
+            url: "{{ dspace_server_url }}/api"
+            method: GET
+            status_code: 200
+            timeout: 10
+          register: backend_check
+          failed_when: false
+
+        - name: Warn if backend not available
+          debug:
+            msg:
+              - "WARNING: DSpace backend API is not responding at {{ dspace_server_url }}/api"
+              - "The frontend configuration will be created but may not function properly without the backend."
+              - "Please ensure the backend is installed and running."
+          when: backend_check.status != 200
+
+  tasks:
+    - name: Include configuration tasks
+      include_role:
+        name: dspace-frontend
+        tasks_from: config
+
+  post_tasks:
+    - name: Verify configuration files
+      stat:
+        path: "{{ item }}"
+      register: config_files
+      loop:
+        - "{{ dspace_frontend_config_dir }}/config.prod.yml"
+        - "{{ dspace_frontend_source_dir }}/dspace-ui.json"
+        - "{{ dspace_frontend_install_dir }}"
+
+    - name: Display configuration status
+      debug:
+        msg:
+          - "================================================"
+          - " Frontend Configuration Complete!"
+          - "================================================"
+          - "Production config: {{ dspace_frontend_config_dir }}/config.prod.yml"
+          - "PM2 config: {{ dspace_frontend_source_dir }}/dspace-ui.json"
+          - "Symlink: {{ dspace_frontend_install_dir }} -> {{ dspace_frontend_source_dir }}"
+          - "Backend URL: {{ dspace_server_url }}"
+          - "Frontend URL: http://localhost:{{ dspace_frontend_port }}"
+          - "================================================"

@@ -1,0 +1,101 @@
+---
+# Install Firefox from Mozilla's official APT repository
+# Based on: https://support.mozilla.org/en-US/kb/install-firefox-linux#w_install-firefox-deb-package-for-debian-based-distributions-recommended
+
+- name: Install required packages for repository management
+  apt:
+    name:
+      - wget
+      - gnupg
+      - ca-certificates
+      - apt-transport-https
+    state: present
+    update_cache: yes
+
+- name: Create directory for APT repository keys
+  file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: '0755'
+    owner: root
+    group: root
+
+- name: Import Mozilla APT repository signing key
+  shell: |
+    wget -q https://packages.mozilla.org/apt/repo-signing-key.gpg -O- | tee /etc/apt/keyrings/packages.mozilla.org.asc > /dev/null
+  args:
+    creates: /etc/apt/keyrings/packages.mozilla.org.asc
+
+- name: Verify key fingerprint (optional)
+  shell: gpg -n -q --import --import-options import-show /etc/apt/keyrings/packages.mozilla.org.asc
+  register: gpg_fingerprint
+  changed_when: false
+  failed_when: false
+
+- name: Display GPG key fingerprint
+  debug:
+    msg: "Mozilla APT repository key fingerprint: {{ gpg_fingerprint.stdout_lines | select('match', '.*fingerprint.*') | list }}"
+  when: gpg_fingerprint.rc == 0
+
+- name: Detect Debian version
+  command: lsb_release -sc
+  register: debian_codename
+  changed_when: false
+
+- name: Determine if using new apt source format
+  set_fact:
+    use_new_apt_format: "{{ debian_codename.stdout in ['trixie', 'sid'] or ansible_distribution_version is version('24.04', '>=') }}"
+
+- name: Add Mozilla APT repository (old format for Debian Bookworm and older)
+  lineinfile:
+    path: /etc/apt/sources.list.d/mozilla.list
+    line: "deb [signed-by=/etc/apt/keyrings/packages.mozilla.org.asc] https://packages.mozilla.org/apt mozilla main"
+    create: yes
+    state: present
+  when: not use_new_apt_format
+
+- name: Add Mozilla APT repository (new format for Debian Trixie and newer)
+  copy:
+    content: |
+      Types: deb
+      URIs: https://packages.mozilla.org/apt
+      Suites: mozilla
+      Components: main
+      Signed-By: /etc/apt/keyrings/packages.mozilla.org.asc
+    dest: /etc/apt/sources.list.d/mozilla.sources
+    owner: root
+    group: root
+    mode: '0644'
+  when: use_new_apt_format
+
+- name: Configure APT to prioritize Mozilla packages
+  copy:
+    content: |
+      Package: *
+      Pin: origin packages.mozilla.org
+      Pin-Priority: 1000
+    dest: /etc/apt/preferences.d/mozilla
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Update apt cache after adding Mozilla repository
+  apt:
+    update_cache: yes
+
+- name: Install Firefox
+  apt:
+    name: firefox
+    state: present
+    update_cache: yes
+
+- name: Verify Firefox installation
+  command: firefox --version
+  register: firefox_version
+  changed_when: false
+  failed_when: false
+
+- name: Display Firefox version
+  debug:
+    msg: "Firefox installed successfully: {{ firefox_version.stdout }}"
+  when: firefox_version.rc == 0

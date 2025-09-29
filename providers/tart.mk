@@ -25,8 +25,8 @@ provider-init: ## Initialize Tart VM
 	@tart clone $(TART_IMAGE) $(VM_NAME)
 	@echo "✅ VM created"
 	@# Configure VM resources
-	@echo "🔧 Configuring VM with $(VM_CPUS) CPUs..."
-	@tart set $(VM_NAME) --cpu $(VM_CPUS)
+	@echo "🔧 Configuring VM with $(VM_CPUS) CPUs, 8GB RAM, and 30GB disk..."
+	@tart set $(VM_NAME) --cpu $(VM_CPUS) --memory 8192 --disk-size 30
 	@# Start the VM
 	@echo "🚀 Starting VM..."
 	@tart run $(VM_NAME) &
@@ -43,16 +43,18 @@ provider-init: ## Initialize Tart VM
 
 provider-start: ## Start the Tart VM
 	@echo "🚀 Starting VM '$(VM_NAME)'..."
-	@if ! tart list | grep -q "$(VM_NAME)"; then \
+	@# Check if VM exists and get its status
+	@VM_STATUS=$$(tart list 2>/dev/null | awk '$$2 == "$(VM_NAME)" {print $$6}'); \
+	if [ -z "$$VM_STATUS" ]; then \
 		echo "❌ VM does not exist. Run 'make provider-init' first"; \
 		exit 1; \
-	fi
-	@if tart ip $(VM_NAME) 2>/dev/null; then \
+	fi; \
+	if [ "$$VM_STATUS" != "stopped" ]; then \
 		echo "✅ VM is already running at $$(tart ip $(VM_NAME))"; \
 	else \
-		tart run --no-graphics $(VM_NAME) & \
+		tart run $(VM_NAME) & \
 		sleep 5; \
-		while ! tart ip $(VM_NAME) 2>/dev/null; do \
+		while [ "$$(tart list 2>/dev/null | awk '$$2 == "$(VM_NAME)" {print $$6}')" = "stopped" ]; do \
 			sleep 2; \
 		done; \
 		echo "✅ VM started at $$(tart ip $(VM_NAME))"; \
@@ -60,15 +62,14 @@ provider-start: ## Start the Tart VM
 
 provider-stop: ## Stop the Tart VM
 	@echo "⏹️  Stopping VM '$(VM_NAME)'..."
-	@if tart list | grep -q "$(VM_NAME)"; then \
-		if tart ip $(VM_NAME) 2>/dev/null; then \
-			tart stop $(VM_NAME); \
-			echo "✅ VM stopped"; \
-		else \
-			echo "ℹ️  VM is not running"; \
-		fi; \
-	else \
+	@VM_STATUS=$$(tart list 2>/dev/null | awk '$$2 == "$(VM_NAME)" {print $$6}'); \
+	if [ -z "$$VM_STATUS" ]; then \
 		echo "❌ VM does not exist"; \
+	elif [ "$$VM_STATUS" = "stopped" ]; then \
+		echo "ℹ️  VM is not running"; \
+	else \
+		tart stop $(VM_NAME); \
+		echo "✅ VM stopped"; \
 	fi
 
 provider-destroy: ## Destroy the Tart VM
@@ -111,20 +112,20 @@ provider-get-ip: ## Get IP address of the Tart VM
 
 provider-status: ## Check status of the Tart VM
 	@echo "Tart Provider Status:"
-	@if tart list | grep -q "$(VM_NAME)"; then \
-		if IP=$$(tart ip $(VM_NAME) 2>/dev/null); then \
-			echo "✅ VM: Running"; \
-			echo "📍 IP: $$IP"; \
-			if ssh -o ConnectTimeout=2 -o BatchMode=yes $(SSH_USER)@$$IP exit 2>/dev/null; then \
-				echo "🔗 SSH: Connected"; \
-			else \
-				echo "❌ SSH: Not accessible"; \
-			fi; \
-		else \
-			echo "⏸️  VM: Stopped"; \
-		fi; \
-	else \
+	@VM_STATUS=$$(tart list 2>/dev/null | awk '$$2 == "$(VM_NAME)" {print $$6}'); \
+	if [ -z "$$VM_STATUS" ]; then \
 		echo "❌ VM: Does not exist"; \
+	elif [ "$$VM_STATUS" = "stopped" ]; then \
+		echo "⏸️  VM: Stopped"; \
+	else \
+		echo "✅ VM: Running"; \
+		IP=$$(tart ip $(VM_NAME) 2>/dev/null); \
+		echo "📍 IP: $$IP"; \
+		if ssh -o ConnectTimeout=2 -o BatchMode=yes $(SSH_USER)@$$IP exit 2>/dev/null; then \
+			echo "🔗 SSH: Connected"; \
+		else \
+			echo "❌ SSH: Not accessible"; \
+		fi; \
 	fi
 
 provider-copy-ssh-key: ## Copy SSH key to Tart VM

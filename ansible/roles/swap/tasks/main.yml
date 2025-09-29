@@ -2,7 +2,7 @@
 - name: Get system memory information
   set_fact:
     system_memory_mb: "{{ ansible_memtotal_mb }}"
-    required_swap_mb: "{{ (ansible_memtotal_mb * 0.5) | int }}"
+    required_swap_mb: "{{ ansible_memtotal_mb | int }}"
 
 - name: Check current swap size
   shell: free -m | grep -i swap | awk '{print $2}'
@@ -14,7 +14,7 @@
     msg:
       - "System RAM: {{ system_memory_mb }} MB"
       - "Current swap: {{ current_swap_mb.stdout }} MB"
-      - "Required swap (50% of RAM): {{ required_swap_mb }} MB"
+      - "Required swap (100% of RAM): {{ required_swap_mb }} MB"
 
 - name: Determine if swap needs to be created or increased
   set_fact:

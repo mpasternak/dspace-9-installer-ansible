@@ -43,3 +43,7 @@ SOLR_HEAP="512m"
 # Settings for authentication
 #SOLR_AUTH_TYPE="basic"
 #SOLR_AUTHENTICATION_OPTS="-Dbasicauth=solr:SolrRocks"
+
+# Additional JVM options for Solr
+# Enable config lib loading for DSpace
+SOLR_OPTS="-Dsolr.config.lib.enabled=true"

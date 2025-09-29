@@ -25,6 +25,7 @@
           - bzip2
           - xz-utils
           - emacs-nox
+          - links
         state: present
 
     - name: Set timezone
