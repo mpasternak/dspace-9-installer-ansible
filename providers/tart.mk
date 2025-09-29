@@ -39,7 +39,7 @@ provider-init: ## Initialize Tart VM
 	@echo "✅ VM started successfully"
 	@echo "📍 IP Address: $$(tart ip $(VM_NAME))"
 	@# Setup SSH key authentication
-	@$(MAKE) -f providers/tart.mk provider-copy-ssh-key
+	@$(MAKE) provider-copy-ssh-key
 
 provider-start: ## Start the Tart VM
 	@echo "🚀 Starting VM '$(VM_NAME)'..."
