@@ -67,6 +67,33 @@
     group: "{{ solr_group }}"
     recurse: yes
 
+- name: Check PostgreSQL service status
+  systemd:
+    name: postgresql
+    state: started
+  register: postgres_status
+
+- name: Verify database connectivity
+  command: "{{ dspace_install_dir }}/bin/dspace database test"
+  become: yes
+  become_user: "{{ dspace_user }}"
+  register: db_test_before_admin
+  changed_when: false
+  retries: 3
+  delay: 5
+  until: db_test_before_admin.rc == 0
+
+- name: Create DSpace administrator account
+  command: >
+    {{ dspace_install_dir }}/bin/dspace create-administrator
+    -e "{{ dspace_admin_email }}"
+    -f "{{ dspace_admin_firstname }}"
+    -l "{{ dspace_admin_lastname }}"
+    -p "{{ dspace_admin_password }}"
+  become: yes
+  become_user: "{{ dspace_user }}"
+  register: create_admin
+
 - name: Deploy DSpace server webapp to Tomcat
   copy:
     src: "{{ dspace_install_dir }}/webapps/server"
@@ -97,33 +124,6 @@
     delay: 10
     timeout: 60
     state: started
-
-- name: Check PostgreSQL service status
-  systemd:
-    name: postgresql
-    state: started
-  register: postgres_status
-
-- name: Verify database connectivity
-  command: "{{ dspace_install_dir }}/bin/dspace database test"
-  become: yes
-  become_user: "{{ dspace_user }}"
-  register: db_test_before_admin
-  changed_when: false
-  retries: 3
-  delay: 5
-  until: db_test_before_admin.rc == 0
-
-- name: Create DSpace administrator account
-  command: >
-    {{ dspace_install_dir }}/bin/dspace create-administrator
-    -e "{{ dspace_admin_email }}"
-    -f "{{ dspace_admin_firstname }}"
-    -l "{{ dspace_admin_lastname }}"
-    -p "{{ dspace_admin_password }}"
-  become: yes
-  become_user: "{{ dspace_user }}"
-  register: create_admin
 
 - name: Set up DSpace cron jobs
   cron:
