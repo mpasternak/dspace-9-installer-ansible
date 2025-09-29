@@ -201,21 +201,23 @@ make destroy-vm
 make build-vm
 ```
 
-## Available Make Targets
+## Available Make Targets (for Tart VM workflow)
+
+Note: These Make targets are specifically for the local Tart VM development workflow on macOS. For other SSH targets, use the Ansible playbooks directly.
 
 | Target | Description |
 |--------|-------------|
 | `help` | Display all available targets |
 | **Setup & Configuration** | |
-| `configure-developer-machine` | Complete setup from scratch |
-| `build-vm` | Build and configure VM |
-| `ssh-copy-id` | Copy SSH keys to VM |
+| `configure-developer-machine` | Install Homebrew, Tart, and create VM |
+| `build-vm` | Build and configure Tart VM |
+| `ssh-copy-id` | Copy SSH keys to Tart VM |
 | **VM Management** | |
-| `start-vm` | Start the DSpace VM |
-| `stop-vm` | Stop the DSpace VM |
-| `destroy-vm` | Remove VM for clean restart |
+| `start-vm` | Start the Tart VM |
+| `stop-vm` | Stop the Tart VM |
+| `destroy-vm` | Remove Tart VM for clean restart |
 | `vm-status` | Check VM and services status |
-| `ssh` | SSH into the VM |
+| `ssh` | SSH into the Tart VM |
 | **DSpace Installation** | |
 | `install-prerequisites` | Install Java, PostgreSQL, Solr, Tomcat |
 | `install-dspace` | Complete DSpace installation |
@@ -224,83 +226,173 @@ make build-vm
 | `dspace-build` | Build with Maven and Ant only |
 | `dspace-install-only` | Install without download/build |
 | `dspace-rebuild` | Rebuild existing installation |
-| `dspace-version` | Install specific version |
-| `dspace-github` | Install from GitHub branch |
+| `dspace-version` | Install specific version (VERSION=x.x) |
+| `dspace-github` | Install from GitHub branch (BRANCH=xxx) |
 | **Maintenance** | |
-| `update-apt` | Update Ubuntu packages |
+| `update-apt` | Update Ubuntu packages via Ansible |
+
+## Ansible Playbooks (for any SSH target)
+
+| Playbook | Description | Usage |
+|----------|-------------|-------|
+| `update-system.yml` | Update apt packages and reboot if needed | `ansible-playbook -i inventory.ini update-system.yml` |
+| `install-prerequisites.yml` | Install Java, PostgreSQL, Solr, Tomcat | `ansible-playbook -i inventory.ini install-prerequisites.yml` |
+| `install-dspace.yml` | Complete DSpace installation | `ansible-playbook -i inventory.ini install-dspace.yml` |
+| `dspace-download.yml` | Download DSpace source code | `ansible-playbook -i inventory.ini dspace-download.yml` |
+| `dspace-build.yml` | Build DSpace with Maven | `ansible-playbook -i inventory.ini dspace-build.yml` |
+| `dspace-install-only.yml` | Install pre-built DSpace | `ansible-playbook -i inventory.ini dspace-install-only.yml` |
 
 ## Configuration
 
 ### Ansible Configuration
-- Main config: `ansible/ansible.cfg`
-- Inventory: `ansible/inventory.ini`
-- Variables: `ansible/group_vars/`
+- **Main config**: `ansible/ansible.cfg` - Ansible settings (host checking, retry files, etc.)
+- **Inventory**: `ansible/inventory.ini` - Define your target hosts here
+- **Variables**: `ansible/group_vars/all.yml` - Customize DSpace version, paths, etc.
 
-### VM Configuration
-The VM is configured with:
-- Ubuntu Linux (latest LTS)
-- 4GB RAM (configurable)
-- 20GB disk
-- Network access to host
+### Target Host Requirements
+- Ubuntu 20.04+ or Debian-based Linux
+- SSH access with sudo privileges
+- 4GB+ RAM (8GB recommended)
+- 20GB+ disk space
+- Internet connectivity for packages
 
-### DSpace Configuration
-- Installation directory: `/opt/dspace`
-- Database: PostgreSQL
-- Search: Apache Solr
-- Application server: Apache Tomcat
+### DSpace Installation Details
+- **Base directory**: `/opt/dspace`
+- **Database**: PostgreSQL 12+
+- **Search engine**: Apache Solr 8.11
+- **Application server**: Apache Tomcat 9
+- **Java**: OpenJDK 11
 
 ## Project Structure
 ```
 .
-├── Makefile                    # Main automation interface
-├── ansible/
-│   ├── ansible.cfg            # Ansible configuration
-│   ├── inventory.ini          # VM inventory
-│   ├── install-dspace.yml     # DSpace installation playbook
-│   ├── install-prerequisites.yml # Prerequisites playbook
-│   ├── update-system.yml      # System update playbook
-│   ├── group_vars/            # Ansible variables
-│   └── roles/                 # Ansible roles
-└── CLAUDE.md                  # Development framework documentation
+├── Makefile                       # Automation for Tart VM workflow
+├── CLAUDE.md                      # Development notes
+├── LICENSE                        # MIT License
+├── README.md                      # This file
+└── ansible/
+    ├── ansible.cfg                # Ansible configuration
+    ├── inventory.ini              # SSH target hosts
+    ├── group_vars/
+    │   └── all.yml               # Global variables
+    ├── roles/                     # Ansible roles
+    │   ├── dspace-build/
+    │   ├── dspace-download/
+    │   ├── dspace-install/
+    │   ├── java/
+    │   ├── postgresql/
+    │   ├── solr/
+    │   └── tomcat/
+    ├── install-prerequisites.yml  # Install stack playbook
+    ├── install-dspace.yml         # Full DSpace playbook
+    ├── dspace-download.yml        # Download only
+    ├── dspace-build.yml          # Build only
+    ├── dspace-install-only.yml   # Install only
+    └── update-system.yml         # System updates
 ```
 
 ## Troubleshooting
 
-### VM Won't Start
+### General SSH Target Issues
+
+#### Connection Problems
 ```bash
-# Check Tart status
+# Test SSH connectivity
+ssh user@your-host
+
+# Test Ansible connectivity
+ansible -i ansible/inventory.ini all -m ping
+
+# Debug connection issues
+ansible -i ansible/inventory.ini all -m ping -vvv
+```
+
+#### Permission Issues
+```bash
+# Ensure sudo works without password prompt
+ssh user@host
+sudo -l
+
+# Or configure ansible to prompt for sudo password
+ansible-playbook -i inventory.ini playbook.yml --ask-become-pass
+```
+
+### Tart VM Specific Issues (macOS)
+
+#### VM Won't Start
+```bash
+# Check if VM exists
 tart list
 
-# Restart from scratch
+# Check VM status
+tart status dspace-vm
+
+# Recreate VM
 make destroy-vm
 make build-vm
 ```
 
-### SSH Connection Issues
+#### SSH to VM Fails
 ```bash
-# Copy SSH keys again
+# Get VM IP
+tart ip dspace-vm
+
+# Copy SSH keys manually
+ssh-copy-id dspace@$(tart ip dspace-vm)
+
+# Or use Make target
 make ssh-copy-id
-
-# Check VM network
-make vm-status
 ```
 
-### DSpace Build Failures
+### DSpace Installation Issues
+
+#### Build Failures
 ```bash
-# Check Java and Maven versions
-make ssh
+# Check Java version (should be 11)
 java -version
-mvn -version
 
-# Rebuild DSpace
-make dspace-rebuild
+# Check Maven memory settings
+echo $MAVEN_OPTS
+
+# Increase Maven memory
+export MAVEN_OPTS="-Xmx2048m"
+
+# Retry build
+ansible-playbook -i ansible/inventory.ini ansible/dspace-build.yml
 ```
 
-### Reset Everything
+#### Database Connection Issues
 ```bash
-# Complete cleanup and rebuild
+# Check PostgreSQL is running
+sudo systemctl status postgresql
+
+# Check database exists
+sudo -u postgres psql -l
+
+# Check DSpace database user
+sudo -u postgres psql -c "\du"
+```
+
+### Complete Reset
+
+#### For Tart VM
+```bash
 make destroy-vm
 make configure-developer-machine
+```
+
+#### For Other Hosts
+```bash
+# Remove DSpace installation
+sudo rm -rf /opt/dspace
+sudo rm -rf /opt/dspace-source
+
+# Drop database
+sudo -u postgres psql -c "DROP DATABASE dspace;"
+sudo -u postgres psql -c "DROP USER dspace;"
+
+# Rerun installation
+ansible-playbook -i ansible/inventory.ini ansible/install-dspace.yml
 ```
 
 ## Advanced Usage
