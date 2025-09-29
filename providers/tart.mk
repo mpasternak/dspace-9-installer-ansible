@@ -138,7 +138,8 @@ provider-copy-ssh-key: ## Copy SSH key to Tart VM
 		echo "⚠️  sshpass not found, installing..."; \
 		brew install hudochenkov/sshpass/sshpass; \
 	fi
-	@echo "$(SSH_DEFAULT_PASSWORD)" | sshpass -p $(SSH_DEFAULT_PASSWORD) ssh-copy-id -o StrictHostKeyChecking=no $(SSH_USER)@$$(tart ip $(VM_NAME))
+	@VM_IP=$$(tart ip $(VM_NAME)) && \
+		sshpass -p "$(SSH_DEFAULT_PASSWORD)" ssh-copy-id -o StrictHostKeyChecking=no $(SSH_USER)@$$VM_IP
 	@echo "✅ SSH key copied successfully"
 
 provider-install-deps: ## Install Tart dependencies on macOS

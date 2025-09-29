@@ -87,40 +87,43 @@
     remote_src: yes
   notify: restart tomcat
 
+- name: Flush handlers to restart services
+  meta: flush_handlers
+
+- name: Wait for Tomcat to be fully started
+  wait_for:
+    port: "{{ tomcat_port }}"
+    host: localhost
+    delay: 10
+    timeout: 60
+    state: started
+
+- name: Check PostgreSQL service status
+  systemd:
+    name: postgresql
+    state: started
+  register: postgres_status
+
+- name: Verify database connectivity
+  command: "{{ dspace_install_dir }}/bin/dspace database test"
+  become: yes
+  become_user: "{{ dspace_user }}"
+  register: db_test_before_admin
+  changed_when: false
+  retries: 3
+  delay: 5
+  until: db_test_before_admin.rc == 0
+
 - name: Create DSpace administrator account
-  expect:
-    command: "{{ dspace_install_dir }}/bin/dspace create-administrator"
-    responses:
-      "E-mail address": "{{ dspace_admin_email }}"
-      "First name": "{{ dspace_admin_firstname }}"
-      "Last name": "{{ dspace_admin_lastname }}"
-      "Password will not display on screen": "{{ dspace_admin_password }}"
-      "Again to confirm": "{{ dspace_admin_password }}"
-    timeout: 30
+  command: >
+    {{ dspace_install_dir }}/bin/dspace create-administrator
+    -e "{{ dspace_admin_email }}"
+    -f "{{ dspace_admin_firstname }}"
+    -l "{{ dspace_admin_lastname }}"
+    -p "{{ dspace_admin_password }}"
   become: yes
   become_user: "{{ dspace_user }}"
   register: create_admin
-  ignore_errors: yes
-
-- name: Install expect package if admin creation failed
-  apt:
-    name: expect
-    state: present
-  when: create_admin.failed | default(false)
-
-- name: Retry creating DSpace administrator account
-  expect:
-    command: "{{ dspace_install_dir }}/bin/dspace create-administrator"
-    responses:
-      "E-mail address": "{{ dspace_admin_email }}"
-      "First name": "{{ dspace_admin_firstname }}"
-      "Last name": "{{ dspace_admin_lastname }}"
-      "Password will not display on screen": "{{ dspace_admin_password }}"
-      "Again to confirm": "{{ dspace_admin_password }}"
-    timeout: 30
-  become: yes
-  become_user: "{{ dspace_user }}"
-  when: create_admin.failed | default(false)
 
 - name: Set up DSpace cron jobs
   cron:
@@ -140,9 +143,6 @@
     - name: "DSpace cleanup"
       job: "{{ dspace_install_dir }}/bin/dspace cleanup"
       hour: "4"
-
-- name: Ensure handlers are flushed
-  meta: flush_handlers
 
 - name: Display DSpace installation info
   debug:

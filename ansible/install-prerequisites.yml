@@ -24,6 +24,7 @@
           - unzip
           - bzip2
           - xz-utils
+          - emacs-nox
         state: present
 
     - name: Set timezone

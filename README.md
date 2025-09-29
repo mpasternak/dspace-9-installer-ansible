@@ -1,54 +1,70 @@
-# DSpace 9 Ansible Installer
+# DSpace 9 Installer
 
-> Ansible-based automation framework for installing DSpace 9 on Linux systems via SSH - from local VMs to cloud providers
+> Provider-agnostic automation framework for installing DSpace 9 with support for Tart VMs, Vagrant, and direct SSH hosts
 
 ## Overview
 
-This project provides a comprehensive Ansible automation framework for deploying DSpace 9 to any Linux system accessible via SSH. While it includes convenient integration with Tart VMs for macOS users who want local development environments, it's designed to work with any SSH-accessible Linux host including cloud providers (AWS, Azure, GCP), bare metal servers, Docker containers, or other virtualization platforms.
+This project provides a flexible, provider-agnostic framework for deploying DSpace 9 to various targets. Whether you're using local VMs (Tart on macOS or Vagrant cross-platform) or deploying to physical servers and cloud instances via SSH, this framework handles it all with a consistent interface.
 
 ## Features
 
-- **Target Agnostic**: Deploy to any SSH-accessible Linux system (Ubuntu/Debian-based)
+- **Multiple Provider Support**: Choose between Tart (macOS), Vagrant (cross-platform), or direct SSH connections
+- **Provider Abstraction**: Clean separation between virtualization layer and DSpace operations
 - **Ansible Automation**: Idempotent, repeatable deployments using Ansible playbooks
 - **Complete DSpace Stack**: Automated installation of all prerequisites (Java, PostgreSQL, Solr, Tomcat)
 - **Version Flexibility**: Deploy specific DSpace versions or build from GitHub branches
-- **Multiple Deployment Targets**: Local VMs, cloud instances, containers, or bare metal
-- **macOS Friendly**: Includes Makefile automation and optional Tart VM setup for local development
+- **Unified Interface**: Same commands work across all providers with simple configuration changes
 
 ## Architecture
 
 ```
-┌─────────────────────────────────┐
-│     Control Machine             │
-│   (macOS/Linux/Windows)         │
-│  ┌───────────────────────┐      │
-│  │      Ansible          │      │
-│  └───────────┬───────────┘      │
-└──────────────┼──────────────────┘
+┌──────────────────────────────────────┐
+│        Control Machine               │
+│                                      │
+│  ┌────────────────────────────┐      │
+│  │     Main Makefile          │      │
+│  │  (Provider-agnostic)       │      │
+│  └──────────┬─────────────────┘      │
+│             │                        │
+│  ┌──────────▼─────────────────┐      │
+│  │    Provider Abstraction    │      │
+│  │  ┌──────┐ ┌────────┐ ┌────┐ │      │
+│  │  │ Tart │ │Vagrant │ │SSH │ │      │
+│  │  └──────┘ └──────┘ └────┘ │      │
+│  └──────────┬─────────────────┘      │
+│             │                        │
+│  ┌──────────▼─────────────────┐      │
+│  │        Ansible             │      │
+│  └────────────────────────────┘      │
+└──────────────┬───────────────────────┘
                │ SSH
                ▼
-┌─────────────────────────────────┐
-│     Target Systems              │
-│                                 │
-│  ┌───────────────────────┐      │
-│  │   Local VM (Tart)     │      │
-│  └───────────────────────┘      │
-│                                 │
-│  ┌───────────────────────┐      │
-│  │   Cloud Instance      │      │
-│  │  (AWS/Azure/GCP)      │      │
-│  └───────────────────────┘      │
-│                                 │
-│  ┌───────────────────────┐      │
-│  │   Bare Metal Server   │      │
-│  └───────────────────────┘      │
-│                                 │
-└─────────────────────────────────┘
+┌──────────────────────────────────────┐
+│         Target Systems               │
+│  ┌────────────────────────────┐      │
+│  │ Tart VM (macOS native)     │      │
+│  ├────────────────────────────┤      │
+│  │ Vagrant VM (cross-platform)│      │
+│  ├────────────────────────────┤      │
+│  │ Physical/Cloud Server      │      │
+│  │ (AWS/Azure/GCP/DigitalOcean)│     │
+│  └────────────────────────────┘      │
+└──────────────────────────────────────┘
 
-Each target runs:
-- Ubuntu/Debian Linux
-- DSpace 9 (Frontend + Backend)
-- PostgreSQL, Solr, Tomcat
+File Structure:
+.
+├── Makefile              # Main orchestrator
+├── config.mk            # Provider selection
+├── providers/
+│   ├── tart.mk         # Tart operations
+│   ├── vagrant.mk      # Vagrant operations
+│   └── ssh.mk          # SSH operations
+└── ansible/
+    ├── inventory/
+    │   ├── tart.ini    # Dynamic Tart inventory
+    │   ├── vagrant.ini # Dynamic Vagrant inventory
+    │   └── ssh.ini     # SSH hosts inventory
+    └── playbooks/      # DSpace installation
 ```
 
 ## Prerequisites
@@ -72,92 +88,94 @@ Each target runs:
 
 ## Quick Start
 
-### Option 1: Deploy to Existing Linux Host
+### Using Tart (macOS Native Virtualization)
 
-#### 1. Clone the repository
 ```bash
-git clone https://github.com/yourusername/dspace-9-installer.git
-cd dspace-9-installer
-```
-
-#### 2. Configure your target host
-```bash
-# Edit inventory file to add your host
-vim ansible/inventory.ini
-
-# Add your host details:
-[dspace_hosts]
-your-server ansible_host=192.168.1.100 ansible_user=ubuntu ansible_ssh_private_key_file=~/.ssh/id_rsa
-```
-
-#### 3. Deploy DSpace
-```bash
-# Test connection
-ansible -i ansible/inventory.ini all -m ping
-
-# Install DSpace and prerequisites
-cd ansible
-ansible-playbook -i inventory.ini install-prerequisites.yml
-ansible-playbook -i inventory.ini install-dspace.yml
-```
-
-### Option 2: Local Development with Tart VM (macOS)
-
-#### 1. Clone and setup
-```bash
-git clone https://github.com/yourusername/dspace-9-installer.git
-cd dspace-9-installer
-
-# Install Tart and create VM (macOS only)
+# Default provider is Tart
 make configure-developer-machine
-```
-
-#### 2. Deploy to local VM
-```bash
-# Install prerequisites and DSpace in one command
 make install-dspace-all
 
 # Access the VM
 make ssh
 ```
 
+### Using Vagrant (Cross-platform)
+
+```bash
+# Set Vagrant as provider
+PROVIDER=vagrant make configure-developer-machine
+PROVIDER=vagrant make install-dspace-all
+
+# Or set as default in config.mk
+echo "PROVIDER ?= vagrant" > config.mk
+make install-dspace-all
+```
+
+### Using SSH (Physical/Cloud Servers)
+
+```bash
+# Connect to existing host
+PROVIDER=ssh SSH_HOST=192.168.1.100 make configure-host
+PROVIDER=ssh SSH_HOST=192.168.1.100 make install-dspace-all
+
+# For cloud instances
+PROVIDER=ssh SSH_HOST=ec2-xx-xx-xx-xx.compute.amazonaws.com SSH_USER=ubuntu make configure-host
+```
+
+## Provider Configuration
+
+### Setting Default Provider
+
+Edit `config.mk`:
+```makefile
+# Change default provider
+PROVIDER ?= vagrant  # or tart, ssh
+```
+
+### Provider-Specific Variables
+
+#### Tart Configuration
+```bash
+# In config.mk or environment
+TART_IMAGE=ghcr.io/cirruslabs/ubuntu:latest
+VM_NAME=dspace-server
+```
+
+#### Vagrant Configuration
+```bash
+# In config.mk or environment
+VAGRANT_BOX=ubuntu/jammy64
+VAGRANT_CPUS=2
+VAGRANT_MEMORY=4096
+```
+
+#### SSH Configuration
+```bash
+# Environment variables (required for SSH provider)
+SSH_HOST=your-server.example.com
+SSH_PORT=22            # optional, defaults to 22
+SSH_USER=ubuntu        # optional, defaults to admin
+```
+
 ## Usage Examples
 
-### Deploying to Different Targets
-
-#### AWS EC2 Instance
+### VM Management (Tart/Vagrant)
 ```bash
-# Add to inventory.ini
-[dspace_hosts]
-aws-dspace ansible_host=ec2-xx-xx-xx-xx.compute.amazonaws.com ansible_user=ubuntu
-
-# Deploy
-ansible-playbook -i ansible/inventory.ini ansible/install-dspace.yml
-```
-
-#### DigitalOcean Droplet
-```bash
-# Add to inventory.ini
-[dspace_hosts]
-do-dspace ansible_host=165.232.xx.xx ansible_user=root
-
-# Deploy
-ansible-playbook -i ansible/inventory.ini ansible/install-dspace.yml
-```
-
-### Local Tart VM Management (macOS)
-```bash
-# Start the VM
+# Start VM
 make start-vm
 
-# Stop the VM
+# Stop VM
 make stop-vm
 
-# Check VM and service status
+# Check status
 make vm-status
 
-# SSH into the VM
+# SSH into VM/host
 make ssh
+
+# Destroy and recreate
+make destroy-vm
+make build-vm
 ```
 
 ### DSpace Installation Options
@@ -185,23 +203,25 @@ make destroy-vm
 make build-vm
 ```
 
-## Available Make Targets (for Tart VM workflow)
+## Available Make Targets
 
-Note: These Make targets are specifically for the local Tart VM development workflow on macOS. For other SSH targets, use the Ansible playbooks directly.
+All targets work with any provider (Tart, Vagrant, or SSH). Set provider via `PROVIDER` environment variable or in `config.mk`.
 
 | Target | Description |
 |--------|-------------|
 | `help` | Display all available targets |
+| `info` | Show current provider and configuration |
 | **Setup & Configuration** | |
-| `configure-developer-machine` | Install Homebrew, Tart, and create VM |
-| `build-vm` | Build and configure Tart VM |
-| `ssh-copy-id` | Copy SSH keys to Tart VM |
-| **VM Management** | |
-| `start-vm` | Start the Tart VM |
-| `stop-vm` | Stop the Tart VM |
-| `destroy-vm` | Remove Tart VM for clean restart |
-| `vm-status` | Check VM and services status |
-| `ssh` | SSH into the Tart VM |
+| `configure-developer-machine` | Install dependencies and initialize VM/host |
+| `build-vm` | Create VM or validate SSH host (provider-specific) |
+| `configure-host` | Alias for build-vm when using SSH provider |
+| `ssh-copy-id` | Copy SSH keys to VM/host |
+| **VM/Host Management** | |
+| `start-vm` | Start VM (no-op for SSH provider) |
+| `stop-vm` | Stop VM (no-op for SSH provider) |
+| `destroy-vm` | Delete VM (no-op for SSH provider) |
+| `vm-status` | Check VM/host status |
+| `ssh` | SSH into VM/host |
 | **DSpace Installation** | |
 | `install-prerequisites` | Install Java, PostgreSQL, Solr, Tomcat |
 | `install-dspace` | Complete DSpace installation |
@@ -212,8 +232,13 @@ Note: These Make targets are specifically for the local Tart VM development work
 | `dspace-rebuild` | Rebuild existing installation |
 | `dspace-version` | Install specific version (VERSION=x.x) |
 | `dspace-github` | Install from GitHub branch (BRANCH=xxx) |
-| **Maintenance** | |
+| **Maintenance & Utilities** | |
 | `update-apt` | Update Ubuntu packages via Ansible |
+| `check-services` | Check status of all DSpace services |
+| `tail-logs` | Tail DSpace logs |
+| `clean-logs` | Clean DSpace logs |
+| `backup-db` | Backup DSpace database |
+| `clean` | Remove Emacs backup files (*~, #*#, .#*) |
 
 ## Ansible Playbooks (for any SSH target)
 
@@ -242,21 +267,29 @@ Note: These Make targets are specifically for the local Tart VM development work
 
 ### DSpace Installation Details
 - **Base directory**: `/opt/dspace`
-- **Database**: PostgreSQL 12+
-- **Search engine**: Apache Solr 8.11
-- **Application server**: Apache Tomcat 9
-- **Java**: OpenJDK 11
+- **Database**: PostgreSQL 16
+- **Search engine**: Apache Solr 9.9.0
+- **Application server**: Apache Tomcat 10.1.33
+- **Java**: OpenJDK 17
 
 ## Project Structure
 ```
 .
-├── Makefile                       # Automation for Tart VM workflow
+├── Makefile                       # Main orchestrator (provider-agnostic)
+├── config.mk                      # Provider selection and configuration
+├── providers/                     # Provider implementations
+│   ├── tart.mk                  # Tart VM operations (macOS)
+│   ├── vagrant.mk               # Vagrant VM operations
+│   └── ssh.mk                   # SSH host operations
 ├── CLAUDE.md                      # Development notes
 ├── LICENSE                        # MIT License
 ├── README.md                      # This file
 └── ansible/
     ├── ansible.cfg                # Ansible configuration
-    ├── inventory.ini              # SSH target hosts
+    ├── inventory/                 # Provider-specific inventories
+    │   ├── tart.ini              # Dynamic Tart inventory
+    │   ├── vagrant.ini           # Dynamic Vagrant inventory
+    │   └── ssh.ini               # SSH hosts inventory
     ├── group_vars/
     │   └── all.yml               # Global variables
     ├── roles/                     # Ansible roles
@@ -277,62 +310,59 @@ Note: These Make targets are specifically for the local Tart VM development work
 
 ## Troubleshooting
 
-### General SSH Target Issues
+### Provider-Specific Issues
 
-#### Connection Problems
+#### Tart (macOS)
 ```bash
-# Test SSH connectivity
-ssh user@your-host
-
-# Test Ansible connectivity
-ansible -i ansible/inventory.ini all -m ping
-
-# Debug connection issues
-ansible -i ansible/inventory.ini all -m ping -vvv
-```
-
-#### Permission Issues
-```bash
-# Ensure sudo works without password prompt
-ssh user@host
-sudo -l
-
-# Or configure ansible to prompt for sudo password
-ansible-playbook -i inventory.ini playbook.yml --ask-become-pass
-```
-
-### Tart VM Specific Issues (macOS)
-
-#### VM Won't Start
-```bash
-# Check if VM exists
-tart list
+# Check if Tart is installed
+brew list tart || brew install cirruslabs/cli/tart
 
 # Check VM status
-tart status dspace-vm
+tart list
+make vm-status
 
-# Recreate VM
+# Recreate VM if issues persist
 make destroy-vm
 make build-vm
 ```
 
-#### SSH to VM Fails
+#### Vagrant
 ```bash
-# Get VM IP
-tart ip dspace-vm
+# Check Vagrant status
+vagrant status
 
-# Copy SSH keys manually
-ssh-copy-id dspace@$(tart ip dspace-vm)
+# Check VirtualBox
+VBoxManage list vms
 
-# Or use Make target
-make ssh-copy-id
+# Debug Vagrant issues
+PROVIDER=vagrant make vm-status
+vagrant up --debug
+
+# Reset Vagrant VM
+PROVIDER=vagrant make destroy-vm
+PROVIDER=vagrant make build-vm
+```
+
+#### SSH Provider
+```bash
+# Test connection
+PROVIDER=ssh SSH_HOST=your-host make vm-status
+
+# Check sudo privileges
+ssh user@host "sudo -n true" || echo "Sudo requires password"
+
+# Verify host compatibility
+ssh user@host "lsb_release -a"
+
+# Debug with verbose output
+ANSIBLE_VERBOSE=-vvv PROVIDER=ssh SSH_HOST=your-host make install-dspace
 ```
 
 ### DSpace Installation Issues
 
 #### Build Failures
 ```bash
-# Check Java version (should be 11)
+# Check Java version (should be 17)
 java -version
 
 # Check Maven memory settings
