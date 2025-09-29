@@ -43,9 +43,6 @@ This project provides a comprehensive Ansible automation framework for deploying
 │  │   Bare Metal Server   │      │
 │  └───────────────────────┘      │
 │                                 │
-│  ┌───────────────────────┐      │
-│  │   Docker Container    │      │
-│  └───────────────────────┘      │
 └─────────────────────────────────┘
 
 Each target runs:
@@ -143,19 +140,6 @@ ansible-playbook -i ansible/inventory.ini ansible/install-dspace.yml
 # Add to inventory.ini
 [dspace_hosts]
 do-dspace ansible_host=165.232.xx.xx ansible_user=root
-
-# Deploy
-ansible-playbook -i ansible/inventory.ini ansible/install-dspace.yml
-```
-
-#### Docker Container
-```bash
-# Start container with SSH
-docker run -d -p 2222:22 --name dspace-target ubuntu-ssh-enabled
-
-# Add to inventory.ini
-[dspace_hosts]
-docker-dspace ansible_host=localhost ansible_port=2222 ansible_user=root
 
 # Deploy
 ansible-playbook -i ansible/inventory.ini ansible/install-dspace.yml
