@@ -1,0 +1,35 @@
+---
+- name: restart dspace-frontend
+  shell: |
+    pm2 restart {{ pm2_app_name }} || pm2 start {{ dspace_frontend_source_dir }}/dspace-ui.json
+  become_user: "{{ dspace_user }}"
+  environment:
+    PATH: "/usr/bin:/bin:/usr/local/bin"
+  register: restart_result
+  changed_when: "'restarted' in restart_result.stdout or 'launched' in restart_result.stdout"
+
+- name: reload dspace-frontend
+  shell: pm2 reload {{ pm2_app_name }}
+  become_user: "{{ dspace_user }}"
+  environment:
+    PATH: "/usr/bin:/bin:/usr/local/bin"
+  register: reload_result
+  changed_when: "'reloaded' in reload_result.stdout"
+  ignore_errors: yes
+
+- name: stop dspace-frontend
+  shell: pm2 stop {{ pm2_app_name }}
+  become_user: "{{ dspace_user }}"
+  environment:
+    PATH: "/usr/bin:/bin:/usr/local/bin"
+  register: stop_result
+  changed_when: "'stopped' in stop_result.stdout"
+  ignore_errors: yes
+
+- name: start dspace-frontend
+  shell: pm2 start {{ dspace_frontend_source_dir }}/dspace-ui.json
+  become_user: "{{ dspace_user }}"
+  environment:
+    PATH: "/usr/bin:/bin:/usr/local/bin"
+  register: start_result
+  changed_when: "'online' in start_result.stdout"

@@ -192,16 +192,16 @@ dspace-rebuild: ## Rebuild and reinstall DSpace (skip download)
 	@echo ""
 	@echo "✅ DSpace rebuild complete!"
 
-install-dspace-all: ## Install prerequisites and DSpace in one command
+install-dspace-all: ## Install prerequisites and DSpace backend in one command
 	@echo ""
 	@echo "╔══════════════════════════════════════════════════════════╗"
-	@echo "║      Complete DSpace Installation                        ║"
+	@echo "║      Complete DSpace Backend Installation                 ║"
 	@echo "╚══════════════════════════════════════════════════════════╝"
 	@echo ""
 	@$(MAKE) install-prerequisites
 	@$(MAKE) install-dspace
 	@echo ""
-	@echo "🎉 Complete DSpace stack installed successfully!"
+	@echo "🎉 Complete DSpace backend stack installed successfully!"
 
 dspace-version: ## Install specific DSpace version (usage: make dspace-version VERSION=9.1)
 	@if [ -z "$(VERSION)" ]; then \
@@ -222,6 +222,73 @@ dspace-github: ## Install DSpace from GitHub branch (usage: make dspace-github B
 	@cd $(ANSIBLE_PLAYBOOK_DIR) && \
 		ansible-playbook $(ANSIBLE_VERBOSE) -i $(ANSIBLE_INVENTORY) install-dspace.yml \
 		-e "dspace_source_type=github" -e "dspace_github_branch=$(BRANCH)"
+
+# Frontend targets
+install-frontend: ## Install DSpace Angular frontend with Node.js and PM2
+	@echo ""
+	@echo "╔══════════════════════════════════════════════════════════╗"
+	@echo "║        Installing DSpace Frontend (Angular UI)           ║"
+	@echo "╚══════════════════════════════════════════════════════════╝"
+	@echo ""
+	@echo "🚀 Installing DSpace Angular frontend..."
+	@cd $(ANSIBLE_PLAYBOOK_DIR) && ansible-playbook $(ANSIBLE_VERBOSE) -i $(ANSIBLE_INVENTORY) install-frontend.yml
+	@echo ""
+	@echo "✅ DSpace frontend installation complete!"
+
+frontend-restart: ## Restart DSpace frontend (PM2 process)
+	@echo "🔄 Restarting DSpace frontend..."
+	@cd $(ANSIBLE_PLAYBOOK_DIR) && \
+		ansible -i $(ANSIBLE_INVENTORY) all -m shell \
+		-a "sudo -u dspace pm2 restart dspace-ui" --become
+	@echo "✅ Frontend restarted"
+
+frontend-logs: ## View DSpace frontend PM2 logs
+	@echo "📋 Viewing DSpace frontend logs (Ctrl+C to exit)..."
+	@$(MAKE) provider-ssh -- "sudo -u dspace pm2 logs dspace-ui --lines 100"
+
+frontend-status: ## Check DSpace frontend status
+	@echo "📊 Checking DSpace frontend status..."
+	@cd $(ANSIBLE_PLAYBOOK_DIR) && \
+		ansible -i $(ANSIBLE_INVENTORY) all -m shell \
+		-a "sudo -u dspace pm2 status" --become
+
+install-complete: ## Complete installation: backend + frontend + nginx
+	@echo ""
+	@echo "╔══════════════════════════════════════════════════════════╗"
+	@echo "║      Complete DSpace Stack Installation                  ║"
+	@echo "║      (Backend + Frontend + Nginx)                        ║"
+	@echo "╚══════════════════════════════════════════════════════════╝"
+	@echo ""
+	@$(MAKE) install-prerequisites
+	@$(MAKE) install-dspace
+	@$(MAKE) install-frontend
+	@echo ""
+	@echo "🎉 Complete DSpace stack with frontend installed successfully!"
+	@echo ""
+	@echo "📌 Access your DSpace installation:"
+	@echo "   Frontend UI: http://$(VM_NAME)/"
+	@echo "   Backend API: http://$(VM_NAME)/server/api"
+	@echo ""
+
+frontend-version: ## Install specific frontend version (usage: make frontend-version VERSION=9.1)
+	@if [ -z "$(VERSION)" ]; then \
+		echo "❌ Please specify VERSION (e.g., make frontend-version VERSION=9.1)"; \
+		exit 1; \
+	fi
+	@echo "📦 Installing DSpace frontend version $(VERSION)..."
+	@cd $(ANSIBLE_PLAYBOOK_DIR) && \
+		ansible-playbook $(ANSIBLE_VERBOSE) -i $(ANSIBLE_INVENTORY) install-frontend.yml \
+		-e "dspace_frontend_version=$(VERSION)"
+
+frontend-github: ## Install frontend from GitHub branch (usage: make frontend-github BRANCH=main)
+	@if [ -z "$(BRANCH)" ]; then \
+		echo "❌ Please specify BRANCH (e.g., make frontend-github BRANCH=main)"; \
+		exit 1; \
+	fi
+	@echo "📦 Installing DSpace frontend from GitHub branch $(BRANCH)..."
+	@cd $(ANSIBLE_PLAYBOOK_DIR) && \
+		ansible-playbook $(ANSIBLE_VERBOSE) -i $(ANSIBLE_INVENTORY) install-frontend.yml \
+		-e "dspace_frontend_source_type=github" -e "dspace_frontend_github_branch=$(BRANCH)"
 
 # Utility targets
 check-services: ## Check status of all DSpace services

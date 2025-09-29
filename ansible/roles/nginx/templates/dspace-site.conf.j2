@@ -72,9 +72,9 @@ server {
     proxy_read_timeout 600;
     send_timeout 600;
 
-    # Main location - proxy to Tomcat
+    # Main location - proxy to DSpace Angular UI
     location / {
-        proxy_pass http://localhost:{{ tomcat_port | default(8080) }};
+        proxy_pass http://localhost:{{ dspace_frontend_port | default(4000) }};
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -82,7 +82,7 @@ server {
         proxy_set_header X-Forwarded-Host $host;
         proxy_set_header X-Forwarded-Port $server_port;
 
-        # WebSocket support (if needed)
+        # WebSocket support for Angular UI
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
@@ -96,6 +96,19 @@ server {
         proxy_buffers 4 256k;
         proxy_busy_buffers_size 256k;
         proxy_temp_file_write_size 256k;
+
+        # Handle Angular routing (SPA)
+        proxy_intercept_errors on;
+        error_page 404 = @angular;
+    }
+
+    # Fallback for Angular routes
+    location @angular {
+        proxy_pass http://localhost:{{ dspace_frontend_port | default(4000) }};
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
     }
 
     # Specific location for /server (DSpace REST API)

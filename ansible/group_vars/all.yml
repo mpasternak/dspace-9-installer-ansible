@@ -62,6 +62,36 @@ dspace_admin_firstname: "Admin"
 dspace_admin_lastname: "User"
 dspace_admin_password: "admin"
 
+# DSpace Frontend (Angular UI) configuration
+dspace_frontend_version: "{{ dspace_version }}"  # Keep in sync with backend version
+dspace_frontend_source_type: "release"  # Options: "release" or "github"
+dspace_frontend_github_repo: "https://github.com/DSpace/dspace-angular.git"
+dspace_frontend_github_branch: "main"
+dspace_frontend_release_url: "https://github.com/DSpace/dspace-angular/archive/refs/tags/dspace-{{ dspace_frontend_version }}.zip"
+
+# Frontend installation paths
+dspace_frontend_source_dir: "/opt/dspace-angular-src-{{ dspace_frontend_version }}"
+dspace_frontend_install_dir: "/opt/dspace-angular"
+dspace_frontend_config_dir: "{{ dspace_frontend_source_dir }}/config"
+
+# Node.js configuration
+nodejs_version: "20"  # LTS version
+nodejs_repo_url: "https://deb.nodesource.com/setup_{{ nodejs_version }}.x"
+
+# PM2 configuration
+pm2_user: "{{ dspace_user }}"
+pm2_home: "/home/{{ pm2_user }}/.pm2"
+pm2_app_name: "dspace-ui"
+pm2_instances: 1  # Number of instances (can be 'max' for all CPUs)
+pm2_exec_mode: "cluster"  # Options: "fork" or "cluster"
+pm2_log_dir: "/var/log/pm2"
+
+# Frontend server configuration
+dspace_frontend_host: "0.0.0.0"
+dspace_frontend_port: 4000
+dspace_frontend_namespace: "/"
+dspace_frontend_ssl: false
+
 # Email configuration
 mail_server: "localhost"
 mail_port: 25

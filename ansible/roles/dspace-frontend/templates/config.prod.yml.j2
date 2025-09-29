@@ -1,0 +1,155 @@
+# DSpace Angular Production Configuration
+# Managed by Ansible - DO NOT EDIT MANUALLY
+
+# UI Settings
+ui:
+  ssl: {{ dspace_frontend_ssl | lower }}
+  host: {{ dspace_frontend_host }}
+  port: {{ dspace_frontend_port }}
+  nameSpace: {{ dspace_frontend_namespace }}
+
+  # The rateLimiter settings limit each user to a 'max' of 500 requests per 'windowMs' (1 minute by default)
+  rateLimiter:
+    windowMs: 60000
+    max: 500
+
+# REST API Settings
+rest:
+  ssl: false
+  host: localhost
+  port: {{ tomcat_port }}
+  nameSpace: /server
+
+# Cache Settings
+cache:
+  # Cache lifetime in milliseconds
+  # Default is 15 minutes (900000 ms)
+  msToLive:
+    default: 900000
+  # Cache-Control HTTP Header
+  control: max-age=60
+  autoSync:
+    defaultTime: 0
+    maxBufferSize: 100
+    timePerMethod:
+      PATCH: 3
+
+# Form Settings
+form:
+  spellcheck: true
+
+# Notification Settings
+notifications:
+  rtl: false
+  position:
+    - top
+    - right
+  maxStack: 8
+  timeOut: 5000
+  clickToClose: true
+  preventDuplicates: false
+
+# Submission Settings
+submission:
+  autosave:
+    timer: 5
+  icons:
+    metadata:
+      - name: dc.author
+        style: fas fa-user
+      - name: dc.contributor.author
+        style: fas fa-user
+      - name: dc.contributor.editor
+        style: fas fa-user
+      - name: dc.date.issued
+        style: far fa-calendar-alt
+      - name: dc.identifier
+        style: fas fa-fingerprint
+      - name: dc.title
+        style: fas fa-book
+      - name: dc.type
+        style: fas fa-tag
+    authority:
+      confidence:
+        - value: 600
+          style: text-success
+        - value: 500
+          style: text-info
+        - value: 400
+          style: text-warning
+        - value: 300
+          style: text-muted
+
+# Universal Settings
+universal:
+  preboot: true
+  async: true
+  time: false
+
+# Authentication Settings
+auth:
+  ui:
+    timeUntilIdle: 900000
+    idleGracePeriod: 300000
+
+# Browse By Settings
+browseBy:
+  showThumbnails: true
+  pageSize: 20
+
+# Item Page Settings
+item:
+  edit:
+    undoTimeout: 10000
+
+# Community/Collection List Settings
+communityList:
+  pageSize: 20
+
+# Homepage Settings
+homePage:
+  recentSubmissions:
+    pageSize: 5
+    sortField: 'dc.date.accessioned'
+  topLevelCommunityList:
+    pageSize: 5
+
+# Theme Settings
+themes:
+  - name: '{{ dspace_name }}'
+    extends: dspace
+    handle: '{{ domain_name }}'
+
+# Language Settings
+languages:
+  - code: en
+    label: English
+    active: true
+
+# Bundle Settings
+bundle:
+  standardBundles:
+    - ORIGINAL
+    - THUMBNAIL
+    - LICENSE
+    - SWORD
+    - TEXT
+    - METADATA
+
+# Media Viewer Settings
+mediaViewer:
+  image: true
+  video: true
+
+# SEO Settings
+seo:
+  verification:
+    googleSiteVerification: ''
+
+# Metadata Settings
+info:
+  enableEndUserAgreement: true
+  enablePrivacyStatement: true
+
+# Debug Settings
+debug: false

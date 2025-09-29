@@ -4,7 +4,8 @@
       "Bash(make update-apt:*)",
       "Bash(mkdir:*)",
       "Read(//Users/mpasternak/Programowanie/DSpace/**)",
-      "Bash(make:*)"
+      "Bash(make:*)",
+      "WebFetch(domain:wiki.lyrasis.org)"
     ],
     "deny": [],
     "ask": []

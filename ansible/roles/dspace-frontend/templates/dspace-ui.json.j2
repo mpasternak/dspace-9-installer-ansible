@@ -1,0 +1,39 @@
+{
+  "apps": [
+    {
+      "name": "{{ pm2_app_name }}",
+      "script": "./dist/server/main.js",
+      "cwd": "{{ dspace_frontend_source_dir }}",
+      "instances": {{ pm2_instances }},
+      "exec_mode": "{{ pm2_exec_mode }}",
+      "env": {
+        "NODE_ENV": "production",
+        "NODE_OPTIONS": "--max-old-space-size=4096",
+        "DSPACE_REST_SSL": "false",
+        "DSPACE_REST_HOST": "localhost",
+        "DSPACE_REST_PORT": "{{ tomcat_port }}",
+        "DSPACE_REST_NAMESPACE": "/server",
+        "DSPACE_UI_SSL": "{{ dspace_frontend_ssl | lower }}",
+        "DSPACE_UI_HOST": "{{ dspace_frontend_host }}",
+        "DSPACE_UI_PORT": "{{ dspace_frontend_port }}",
+        "DSPACE_UI_NAMESPACE": "{{ dspace_frontend_namespace }}"
+      },
+      "node_args": "--max-old-space-size=4096",
+      "error_file": "{{ pm2_log_dir }}/{{ pm2_app_name }}-error.log",
+      "out_file": "{{ pm2_log_dir }}/{{ pm2_app_name }}-out.log",
+      "log_file": "{{ pm2_log_dir }}/{{ pm2_app_name }}-combined.log",
+      "time": true,
+      "log_date_format": "YYYY-MM-DD HH:mm:ss Z",
+      "merge_logs": true,
+      "watch": false,
+      "max_memory_restart": "2G",
+      "min_uptime": "10s",
+      "max_restarts": 10,
+      "autorestart": true,
+      "kill_timeout": 10000,
+      "wait_ready": true,
+      "listen_timeout": 10000,
+      "vizion": false
+    }
+  ]
+}
