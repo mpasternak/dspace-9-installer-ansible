@@ -1,0 +1,110 @@
+---
+- name: Install Nginx and SSL packages
+  apt:
+    name:
+      - nginx
+      - ssl-cert
+      - ca-certificates
+    state: present
+    update_cache: yes
+
+- name: Remove default Nginx site
+  file:
+    path: /etc/nginx/sites-enabled/default
+    state: absent
+  notify: reload nginx
+
+- name: Create Nginx configuration
+  template:
+    src: nginx.conf.j2
+    dest: /etc/nginx/nginx.conf
+    owner: root
+    group: root
+    mode: '0644'
+    backup: yes
+  notify: reload nginx
+
+- name: Create DSpace site configuration
+  template:
+    src: dspace-site.conf.j2
+    dest: /etc/nginx/sites-available/dspace
+    owner: root
+    group: root
+    mode: '0644'
+  notify: reload nginx
+
+- name: Enable DSpace site
+  file:
+    src: /etc/nginx/sites-available/dspace
+    dest: /etc/nginx/sites-enabled/dspace
+    state: link
+  notify: reload nginx
+
+- name: Create directory for SSL certificates
+  file:
+    path: /etc/nginx/ssl
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Generate snakeoil certificate
+  block:
+    - name: Check if snakeoil certificate exists
+      stat:
+        path: "{{ snakeoil_cert_path }}"
+      register: snakeoil_cert
+
+    - name: Generate self-signed certificate
+      command: >
+        openssl req -x509 -nodes -days 3650 -newkey rsa:2048
+        -keyout {{ snakeoil_key_path }}
+        -out {{ snakeoil_cert_path }}
+        -subj "/C={{ snakeoil_cert_country }}/ST={{ snakeoil_cert_state }}/L={{ snakeoil_cert_locality }}/O={{ snakeoil_cert_organization }}/CN={{ domain_name }}"
+      when: not snakeoil_cert.stat.exists
+
+    - name: Set permissions on snakeoil private key
+      file:
+        path: "{{ snakeoil_key_path }}"
+        owner: root
+        group: ssl-cert
+        mode: '0640'
+      when: not snakeoil_cert.stat.exists
+
+    - name: Copy snakeoil certificate to system trust store
+      copy:
+        src: "{{ snakeoil_cert_path }}"
+        dest: "/usr/local/share/ca-certificates/dspace-snakeoil.crt"
+        remote_src: yes
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Update system certificate trust store
+      command: update-ca-certificates
+      register: update_ca
+      changed_when: "'1 added' in update_ca.stdout"
+
+  when: use_snakeoil | default(true)
+
+- name: Test Nginx configuration
+  command: nginx -t
+  register: nginx_test
+  changed_when: false
+  failed_when: nginx_test.rc != 0
+
+- name: Start and enable Nginx
+  systemd:
+    name: nginx
+    state: started
+    enabled: yes
+    daemon_reload: yes
+
+- name: Wait for Nginx to be ready
+  wait_for:
+    port: 80
+    delay: 2
+    timeout: 30
+
+- name: Ensure handlers are flushed
+  meta: flush_handlers

@@ -1,0 +1,92 @@
+---
+- name: Install DSpace Prerequisites
+  hosts: dspace_servers
+  become: yes
+
+  pre_tasks:
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
+    - name: Install basic packages
+      apt:
+        name:
+          - software-properties-common
+          - ca-certificates
+          - curl
+          - wget
+          - gnupg
+          - lsb-release
+          - vim
+          - htop
+          - net-tools
+          - unzip
+          - bzip2
+          - xz-utils
+        state: present
+
+    - name: Set timezone
+      timezone:
+        name: "{{ timezone }}"
+
+    - name: Generate locale
+      locale_gen:
+        name: "{{ locale }}"
+        state: present
+
+    - name: Set default locale
+      command: update-locale LANG={{ locale }}
+      changed_when: false
+
+  roles:
+    - swap
+    - java
+    - postgresql
+    - nginx
+    - tomcat
+    - solr
+    - certbot
+
+  post_tasks:
+    - name: Verify Java installation
+      command: java -version
+      register: java_check
+      changed_when: false
+
+    - name: Verify PostgreSQL is running
+      systemd:
+        name: postgresql
+        state: started
+      register: pg_status
+
+    - name: Verify Solr is accessible
+      uri:
+        url: "http://localhost:{{ solr_port }}/solr/#/admin/ping"
+        method: GET
+        status_code: 200
+      register: solr_check
+
+    - name: Verify Tomcat is running
+      wait_for:
+        port: "{{ tomcat_port }}"
+        delay: 5
+        timeout: 30
+      register: tomcat_check
+
+    - name: Verify Nginx is running
+      systemd:
+        name: nginx
+        state: started
+      register: nginx_status
+
+    - name: Display installation summary
+      debug:
+        msg:
+          - "Prerequisites installed successfully!"
+          - "Java: Installed"
+          - "PostgreSQL: {{ 'Running' if pg_status.state == 'started' else 'Not Running' }}"
+          - "Nginx: {{ 'Running' if nginx_status.state == 'started' else 'Not Running' }}"
+          - "Solr: {{ 'Accessible' if solr_check.status == 200 else 'Not Accessible' }}"
+          - "Tomcat: {{ 'Running' if tomcat_check.state == 'started' else 'Not Running' }}"
+          - "SSL: {{ 'Enabled' if ssl_enabled else 'Disabled (set ssl_enabled=true and configure domain_name)' }}"

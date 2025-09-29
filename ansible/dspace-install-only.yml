@@ -1,0 +1,105 @@
+---
+- name: Install DSpace from Built Sources
+  hosts: dspace_servers
+  become: yes
+
+  pre_tasks:
+    - name: Check if DSpace is built
+      stat:
+        path: "{{ dspace_source_dir_versioned }}/dspace/target/dspace-installer/build.xml"
+      register: build_exists
+
+    - name: Fail if DSpace not built
+      fail:
+        msg: "DSpace not built. Please run 'make dspace-build' first"
+      when: not build_exists.stat.exists
+
+    - name: Check PostgreSQL
+      systemd:
+        name: postgresql
+        state: started
+      register: pg_installed
+      failed_when: false
+
+    - name: Check Solr
+      uri:
+        url: "http://localhost:{{ solr_port }}/solr/#/admin/ping"
+        method: GET
+        status_code: 200
+      register: solr_installed
+      failed_when: false
+
+    - name: Check Tomcat
+      wait_for:
+        port: "{{ tomcat_port }}"
+        timeout: 5
+      register: tomcat_installed
+      failed_when: false
+
+    - name: Fail if prerequisites not installed
+      fail:
+        msg: "Prerequisites not installed. Please run 'make install-prerequisites' first"
+      when: >
+        pg_installed.failed or
+        solr_installed.status != 200 or
+        tomcat_installed.failed
+
+  roles:
+    - dspace-base
+    - dspace-install
+
+  post_tasks:
+    - name: Restart services
+      systemd:
+        name: "{{ item }}"
+        state: restarted
+      with_items:
+        - postgresql
+        - solr
+        - tomcat
+
+    - name: Wait for services to be ready
+      wait_for:
+        port: "{{ item }}"
+        delay: 10
+        timeout: 60
+      with_items:
+        - "{{ postgres_port }}"
+        - "{{ solr_port }}"
+        - "{{ tomcat_port }}"
+
+    - name: Test DSpace backend
+      uri:
+        url: "{{ dspace_server_url }}/api"
+        method: GET
+        status_code: 200
+        timeout: 30
+      register: dspace_test
+      retries: 3
+      delay: 10
+      until: dspace_test.status == 200
+      ignore_errors: yes
+
+    - name: Display installation complete message
+      debug:
+        msg:
+          - "================================================"
+          - " DSpace {{ dspace_version }} Installation Complete!"
+          - "================================================"
+          - ""
+          - "Access URLs:"
+          - "  Backend API: {{ dspace_server_url }}/api"
+          - "  HAL Browser: {{ dspace_server_url }}/api/explorer"
+          - ""
+          - "Admin Credentials:"
+          - "  Email: {{ dspace_admin_email }}"
+          - "  Password: {{ dspace_admin_password }}"
+          - ""
+          - "Service Status:"
+          - "  DSpace API: {{ 'Running' if dspace_test.status == 200 else 'Not responding (may need more time to start)' }}"
+          - ""
+          - "Useful Commands:"
+          - "  View logs: sudo journalctl -u tomcat -f"
+          - "  Restart Tomcat: sudo systemctl restart tomcat"
+          - "  DSpace CLI: {{ dspace_install_dir }}/bin/dspace"
+          - "================================================"

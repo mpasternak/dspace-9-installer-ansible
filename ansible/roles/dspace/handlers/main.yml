@@ -1,0 +1,10 @@
+---
+- name: restart solr
+  systemd:
+    name: solr
+    state: restarted
+
+- name: restart tomcat
+  systemd:
+    name: tomcat
+    state: restarted

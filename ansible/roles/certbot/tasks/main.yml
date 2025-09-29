@@ -1,0 +1,126 @@
+---
+- name: Install Certbot and Nginx plugin
+  apt:
+    name:
+      - certbot
+      - python3-certbot-nginx
+    state: present
+    update_cache: yes
+
+- name: Create webroot directory for Certbot
+  file:
+    path: /var/www/html
+    state: directory
+    owner: www-data
+    group: www-data
+    mode: '0755'
+
+- name: Check if certificate already exists
+  stat:
+    path: "/etc/letsencrypt/live/{{ domain_name }}/fullchain.pem"
+  register: cert_exists
+  when: ssl_enabled | default(false)
+
+- name: Stop Nginx for initial certificate generation
+  systemd:
+    name: nginx
+    state: stopped
+  when:
+    - ssl_enabled | default(false)
+    - not cert_exists.stat.exists | default(true)
+    - not certbot_webroot_mode | default(false)
+
+- name: Generate certificate using standalone mode
+  command: >
+    certbot certonly
+    --standalone
+    --non-interactive
+    --agree-tos
+    --email {{ certbot_email }}
+    --domains {{ domain_name }}
+    {% if certbot_staging | default(false) %}--staging{% endif %}
+  when:
+    - ssl_enabled | default(false)
+    - not cert_exists.stat.exists | default(true)
+    - not certbot_webroot_mode | default(false)
+  notify: restart nginx
+
+- name: Generate certificate using webroot mode
+  command: >
+    certbot certonly
+    --webroot
+    --webroot-path /var/www/html
+    --non-interactive
+    --agree-tos
+    --email {{ certbot_email }}
+    --domains {{ domain_name }}
+    {% if certbot_staging | default(false) %}--staging{% endif %}
+  when:
+    - ssl_enabled | default(false)
+    - not cert_exists.stat.exists | default(true)
+    - certbot_webroot_mode | default(false)
+  notify: reload nginx
+
+- name: Start Nginx after certificate generation
+  systemd:
+    name: nginx
+    state: started
+  when:
+    - ssl_enabled | default(false)
+    - not cert_exists.stat.exists | default(true)
+    - not certbot_webroot_mode | default(false)
+
+- name: Set up automatic certificate renewal via cron
+  cron:
+    name: "Certbot renewal"
+    user: root
+    minute: "0"
+    hour: "0,12"
+    job: "certbot renew --quiet --no-self-upgrade --post-hook 'systemctl reload nginx'"
+  when: ssl_enabled | default(false)
+
+- name: Create systemd timer for certificate renewal (alternative to cron)
+  template:
+    src: certbot-renew.timer.j2
+    dest: /etc/systemd/system/certbot-renew.timer
+    owner: root
+    group: root
+    mode: '0644'
+  when:
+    - ssl_enabled | default(false)
+    - certbot_use_systemd_timer | default(false)
+  notify: reload systemd
+
+- name: Create systemd service for certificate renewal
+  template:
+    src: certbot-renew.service.j2
+    dest: /etc/systemd/system/certbot-renew.service
+    owner: root
+    group: root
+    mode: '0644'
+  when:
+    - ssl_enabled | default(false)
+    - certbot_use_systemd_timer | default(false)
+  notify: reload systemd
+
+- name: Enable and start certbot renewal timer
+  systemd:
+    name: certbot-renew.timer
+    enabled: yes
+    state: started
+    daemon_reload: yes
+  when:
+    - ssl_enabled | default(false)
+    - certbot_use_systemd_timer | default(false)
+
+- name: Test certificate renewal
+  command: certbot renew --dry-run
+  register: renewal_test
+  changed_when: false
+  failed_when: renewal_test.rc != 0
+  when:
+    - ssl_enabled | default(false)
+    - cert_exists.stat.exists | default(false)
+
+- name: Ensure handlers are flushed
+  meta: flush_handlers

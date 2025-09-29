@@ -1,0 +1,100 @@
+---
+# DSpace version configuration
+dspace_version: "9.1"
+dspace_source_type: "release"  # Options: "release" or "github"
+dspace_github_repo: "https://github.com/DSpace/DSpace.git"
+dspace_github_branch: "main"
+dspace_release_url: "https://github.com/DSpace/DSpace/archive/refs/tags/dspace-{{ dspace_version }}.zip"
+
+# Installation paths
+# Versioned directories (actual installation locations)
+dspace_install_dir_versioned: "/opt/dspace-{{ dspace_version }}"
+dspace_source_dir_versioned: "/opt/dspace-src-{{ dspace_version }}"
+
+# Symlinks (for compatibility and easy access)
+dspace_install_dir: "/opt/dspace"
+dspace_source_dir: "/opt/dspace-src"
+
+# Legacy symlink for backward compatibility
+dspace_legacy_symlink: "/dspace"
+
+# User configuration
+dspace_user: "dspace"
+dspace_group: "dspace"
+
+# Database configuration
+postgres_version: "16"
+postgres_db: "dspace"
+postgres_user: "dspace"
+postgres_password: "dspace"
+postgres_host: "localhost"
+postgres_port: 5432
+
+# Java configuration
+java_version: "17"
+
+# Maven configuration
+maven_version: "3.8.8"
+
+# Ant configuration
+ant_version: "1.10.14"
+
+# Solr configuration
+solr_version: "9.9.0"
+solr_port: 8983
+solr_home: "/opt/solr"
+solr_user: "solr"
+solr_group: "solr"
+
+# Tomcat configuration
+tomcat_version: "10.1.33"
+tomcat_port: 8080
+tomcat_home: "/opt/tomcat"
+tomcat_user: "tomcat"
+tomcat_group: "tomcat"
+
+# DSpace configuration
+dspace_server_url: "http://localhost:8080/server"
+dspace_ui_url: "http://localhost:4000"
+dspace_name: "DSpace at My Organization"
+dspace_admin_email: "admin@localhost"
+dspace_admin_firstname: "Admin"
+dspace_admin_lastname: "User"
+dspace_admin_password: "admin"
+
+# Email configuration
+mail_server: "localhost"
+mail_port: 25
+mail_username: ""
+mail_password: ""
+mail_from_address: "dspace-noreply@localhost"
+
+# Build options
+maven_opts: "-Xmx1024M -Xms512M"
+ant_opts: "-Xmx1024M -Xms512M"
+
+# System settings
+timezone: "UTC"
+locale: "pl_PL.UTF-8"
+
+# Nginx configuration
+nginx_user: "www-data"
+nginx_worker_processes: "auto"
+nginx_client_max_body_size: "512M"
+
+# SSL/Domain configuration
+domain_name: "dspace.example.com"  # IMPORTANT: Change to your actual domain
+ssl_enabled: false  # Set to true when you have a valid domain
+certbot_email: "admin@example.com"  # Your email for Let's Encrypt notifications
+certbot_staging: false  # Set to true for testing (avoids rate limits)
+certbot_webroot_mode: false  # Set to true to use webroot instead of standalone
+certbot_use_systemd_timer: false  # Use systemd timer instead of cron for renewal
+
+# Snakeoil SSL configuration (self-signed certificates for development)
+use_snakeoil: true  # Use self-signed certificates when ssl_enabled is false
+snakeoil_cert_path: "/etc/ssl/certs/dspace-snakeoil.pem"
+snakeoil_key_path: "/etc/ssl/private/dspace-snakeoil.key"
+snakeoil_cert_country: "US"
+snakeoil_cert_state: "State"
+snakeoil_cert_locality: "City"
+snakeoil_cert_organization: "DSpace Development"

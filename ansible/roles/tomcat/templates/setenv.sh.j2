@@ -1,0 +1,27 @@
+#!/bin/sh
+# Tomcat environment configuration for DSpace
+
+# Java options
+export CATALINA_OPTS="${CATALINA_OPTS} -Xmx2048m"
+export CATALINA_OPTS="${CATALINA_OPTS} -Xms1024m"
+export CATALINA_OPTS="${CATALINA_OPTS} -XX:MaxMetaspaceSize=512m"
+export CATALINA_OPTS="${CATALINA_OPTS} -Dfile.encoding=UTF-8"
+
+# DSpace configuration directory
+export CATALINA_OPTS="${CATALINA_OPTS} -Ddspace.dir={{ dspace_install_dir }}"
+
+# Timezone
+export CATALINA_OPTS="${CATALINA_OPTS} -Duser.timezone={{ timezone }}"
+
+# Additional JVM options for better performance
+export CATALINA_OPTS="${CATALINA_OPTS} -server"
+export CATALINA_OPTS="${CATALINA_OPTS} -XX:+UseG1GC"
+export CATALINA_OPTS="${CATALINA_OPTS} -XX:+UseStringDeduplication"
+
+# Security options
+export CATALINA_OPTS="${CATALINA_OPTS} -Djava.security.egd=file:/dev/urandom"
+
+# Set JAVA_HOME if not already set
+if [ -z "$JAVA_HOME" ]; then
+    export JAVA_HOME="/usr/lib/jvm/java-{{ java_version }}-openjdk-{{ jvm_arch | default('amd64') }}"
+fi

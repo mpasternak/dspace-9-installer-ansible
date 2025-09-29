@@ -1,0 +1,78 @@
+---
+- name: Install DSpace build dependencies
+  apt:
+    name:
+      - maven
+      - ant
+      - ant-optional
+      - git
+      - unzip
+      - curl
+      - wget
+    state: present
+    update_cache: yes
+
+- name: Create local.cfg from template
+  template:
+    src: local.cfg.j2
+    dest: "{{ dspace_source_dir_versioned }}/dspace/config/local.cfg"
+    owner: "{{ dspace_user }}"
+    group: "{{ dspace_group }}"
+    mode: '0640'
+    backup: yes
+
+- name: Set Maven memory options
+  lineinfile:
+    path: /etc/environment
+    line: 'MAVEN_OPTS="{{ maven_opts }}"'
+    create: yes
+    state: present
+
+- name: Set Ant memory options
+  lineinfile:
+    path: /etc/environment
+    line: 'ANT_OPTS="{{ ant_opts }}"'
+    create: yes
+    state: present
+
+- name: Source environment and build DSpace with Maven
+  shell: |
+    source /etc/environment
+    source /etc/profile.d/java.sh 2>/dev/null || true
+    if [ -z "$JAVA_HOME" ]; then
+      if [ -d "/usr/lib/jvm/java-{{ java_version }}-openjdk-amd64" ]; then
+        export JAVA_HOME="/usr/lib/jvm/java-{{ java_version }}-openjdk-amd64"
+      elif [ -d "/usr/lib/jvm/java-{{ java_version }}-openjdk-arm64" ]; then
+        export JAVA_HOME="/usr/lib/jvm/java-{{ java_version }}-openjdk-arm64"
+      fi
+    fi
+    export MAVEN_OPTS="{{ maven_opts }}"
+    mvn clean package -Dmirage2.skip=true
+  args:
+    chdir: "{{ dspace_source_dir_versioned }}"
+    executable: /bin/bash
+  become: yes
+  become_user: "{{ dspace_user }}"
+  register: maven_build
+  failed_when: maven_build.rc != 0
+
+- name: Run Ant fresh_install
+  shell: |
+    source /etc/environment
+    source /etc/profile.d/java.sh 2>/dev/null || true
+    if [ -z "$JAVA_HOME" ]; then
+      if [ -d "/usr/lib/jvm/java-{{ java_version }}-openjdk-amd64" ]; then
+        export JAVA_HOME="/usr/lib/jvm/java-{{ java_version }}-openjdk-amd64"
+      elif [ -d "/usr/lib/jvm/java-{{ java_version }}-openjdk-arm64" ]; then
+        export JAVA_HOME="/usr/lib/jvm/java-{{ java_version }}-openjdk-arm64"
+      fi
+    fi
+    export ANT_OPTS="{{ ant_opts }}"
+    ant fresh_install
+  args:
+    chdir: "{{ dspace_source_dir_versioned }}/dspace/target/dspace-installer"
+    executable: /bin/bash
+  become: yes
+  become_user: "{{ dspace_user }}"
+  register: ant_install
+  failed_when: ant_install.rc != 0

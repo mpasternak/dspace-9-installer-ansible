@@ -1,0 +1,38 @@
+---
+- name: Download DSpace Source
+  hosts: dspace_servers
+  become: yes
+
+  pre_tasks:
+    - name: Ensure prerequisites are installed
+      block:
+        - name: Check Java
+          command: java -version
+          register: java_installed
+          changed_when: false
+          failed_when: false
+
+        - name: Fail if prerequisites not installed
+          fail:
+            msg: "Java not installed. Please run 'make install-prerequisites' first"
+          when: java_installed.rc != 0
+
+  roles:
+    - dspace-base
+    - dspace-download
+
+  post_tasks:
+    - name: Display download complete message
+      debug:
+        msg:
+          - "================================================"
+          - " DSpace {{ dspace_version }} Download Complete!"
+          - "================================================"
+          - ""
+          - "Source downloaded to: {{ dspace_source_dir_versioned }}"
+          - "Symlinked to: {{ dspace_source_dir }}"
+          - ""
+          - "Next Steps:"
+          - "  1. Run 'make dspace-build' to build DSpace"
+          - "  2. Or run 'make install-dspace' for complete installation"
+          - "================================================"

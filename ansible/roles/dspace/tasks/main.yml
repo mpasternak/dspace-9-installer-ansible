@@ -1,0 +1,25 @@
+---
+- name: Import DSpace base setup
+  import_role:
+    name: dspace-base
+  tags:
+    - dspace_base
+    - always
+
+- name: Import DSpace download
+  import_role:
+    name: dspace-download
+  tags:
+    - dspace_download
+
+- name: Import DSpace build
+  import_role:
+    name: dspace-build
+  tags:
+    - dspace_build
+
+- name: Import DSpace installation
+  import_role:
+    name: dspace-install
+  tags:
+    - dspace_install

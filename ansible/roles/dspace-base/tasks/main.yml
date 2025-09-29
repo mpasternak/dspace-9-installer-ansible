@@ -1,0 +1,50 @@
+---
+- name: Create DSpace group
+  group:
+    name: "{{ dspace_group }}"
+    system: yes
+    state: present
+
+- name: Create DSpace user
+  user:
+    name: "{{ dspace_user }}"
+    group: "{{ dspace_group }}"
+    home: "/home/{{ dspace_user }}"
+    shell: /bin/bash
+    system: yes
+    state: present
+
+- name: Create versioned DSpace directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ dspace_user }}"
+    group: "{{ dspace_group }}"
+    mode: '0755'
+  with_items:
+    - "{{ dspace_install_dir_versioned }}"
+    - "{{ dspace_source_dir_versioned }}"
+    - "{{ dspace_install_dir_versioned }}/upload"
+    - "{{ dspace_install_dir_versioned }}/assetstore"
+
+- name: Remove old symlinks if they exist
+  file:
+    path: "{{ item }}"
+    state: absent
+  with_items:
+    - "{{ dspace_install_dir }}"
+    - "{{ dspace_source_dir }}"
+    - "{{ dspace_legacy_symlink }}"
+  ignore_errors: yes
+
+- name: Create symlinks to versioned directories
+  file:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    state: link
+    owner: "{{ dspace_user }}"
+    group: "{{ dspace_group }}"
+  with_items:
+    - { src: "{{ dspace_install_dir_versioned }}", dest: "{{ dspace_install_dir }}" }
+    - { src: "{{ dspace_source_dir_versioned }}", dest: "{{ dspace_source_dir }}" }
+    - { src: "{{ dspace_install_dir_versioned }}", dest: "{{ dspace_legacy_symlink }}" }

@@ -1,0 +1,12 @@
+[Unit]
+Description=Certbot Renewal Service
+After=network.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/certbot renew --quiet --no-self-upgrade --post-hook 'systemctl reload nginx'
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

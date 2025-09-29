@@ -1,0 +1,135 @@
+# DSpace Configuration
+# This file contains the local configuration for this DSpace installation
+
+########################
+# SERVER CONFIGURATION #
+########################
+
+# DSpace installation directory
+dspace.dir = {{ dspace_install_dir }}
+
+# Public URL of DSpace backend ('server' webapp)
+dspace.server.url = {{ dspace_server_url }}
+
+# Public URL of DSpace frontend (Angular UI)
+dspace.ui.url = {{ dspace_ui_url }}
+
+# Name of the site
+dspace.name = {{ dspace_name }}
+
+##########################
+# DATABASE CONFIGURATION #
+##########################
+
+# Database connection
+db.url = jdbc:postgresql://{{ postgres_host }}:{{ postgres_port }}/{{ postgres_db }}
+db.username = {{ postgres_user }}
+db.password = {{ postgres_password }}
+db.driver = org.postgresql.Driver
+db.dialect = org.hibernate.dialect.PostgreSQL94Dialect
+db.schema = public
+
+# Maximum number of DB connections in pool
+db.maxconnections = 30
+db.maxwait = 5000
+db.maxidle = -1
+
+#######################
+# SOLR CONFIGURATION  #
+#######################
+
+# Solr server URL
+solr.server = http://localhost:{{ solr_port }}/solr
+
+########################
+# EMAIL CONFIGURATION  #
+########################
+
+# SMTP mail server
+mail.server = {{ mail_server }}
+mail.server.port = {{ mail_port }}
+mail.server.username = {{ mail_username }}
+mail.server.password = {{ mail_password }}
+mail.from.address = {{ mail_from_address }}
+mail.feedback.recipient = {{ dspace_admin_email }}
+mail.admin = {{ dspace_admin_email }}
+mail.alert.recipient = {{ dspace_admin_email }}
+mail.registration.notify = {{ dspace_admin_email }}
+
+# Disable email if no mail server configured
+{% if mail_server == "localhost" and mail_username == "" %}
+mail.server.disabled = true
+{% endif %}
+
+########################
+# HANDLE CONFIGURATION #
+########################
+
+# Handle prefix
+handle.prefix = 123456789
+
+#########################
+# STORAGE CONFIGURATION #
+#########################
+
+# Asset store directory
+assetstore.dir = ${dspace.dir}/assetstore
+
+# Upload temp directory
+upload.temp.dir = ${dspace.dir}/upload
+
+######################
+# CORS CONFIGURATION #
+######################
+
+# Allow CORS requests from Angular UI
+rest.cors.allowed-origins = {{ dspace_ui_url }}
+
+######################
+# AUTHENTICATION     #
+######################
+
+# Authentication methods
+plugin.sequence.org.dspace.authenticate.AuthenticationMethod = \
+    org.dspace.authenticate.PasswordAuthentication
+
+# Password authentication enabled
+authentication-password.login.specialgroup = Administrator
+
+######################
+# REST API           #
+######################
+
+# Enable HAL Browser
+rest.hal.browser.enabled = true
+
+######################
+# MISC CONFIGURATION #
+######################
+
+# Timezone
+user.timezone = {{ timezone }}
+
+# Default language
+default.locale = {{ locale }}
+
+# Show thumbnails
+webui.browse.thumbnail.show = true
+
+# Enable user registration
+user.registration = true
+
+# Search configuration
+discovery.index.projection = full
+
+# Request item
+request.item.type = all
+
+# Creative Commons license
+cc.license.jurisdiction = international
+
+# Google Analytics (leave empty to disable)
+google.analytics.key =
+
+# Upload file size limit (512MB)
+upload.max = 536870912

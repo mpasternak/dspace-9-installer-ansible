@@ -1,0 +1,153 @@
+---
+- name: Database initialization sequence
+  block:
+    - name: Get database info
+      command: "{{ dspace_install_dir }}/bin/dspace database info"
+      become: yes
+      become_user: "{{ dspace_user }}"
+      register: db_info
+      changed_when: false
+      failed_when: false
+
+    - name: Display database info
+      debug:
+        msg: "{{ db_info.stdout_lines }}"
+      when: db_info.stdout_lines is defined
+
+    - name: Test database connection
+      command: "{{ dspace_install_dir }}/bin/dspace database test"
+      become: yes
+      become_user: "{{ dspace_user }}"
+      register: db_test
+      changed_when: false
+      failed_when: false
+
+    - name: Display database test results
+      debug:
+        msg: "{{ db_test.stdout_lines }}"
+      when: db_test.stdout_lines is defined
+
+    - name: Run database migration (first pass - ignore errors)
+      command: "{{ dspace_install_dir }}/bin/dspace database migrate"
+      become: yes
+      become_user: "{{ dspace_user }}"
+      register: db_migrate_first
+      ignore_errors: yes
+      changed_when: true
+
+    - name: Display first migration attempt results
+      debug:
+        msg:
+          - "First migration attempt completed (errors ignored if any)"
+          - "Return code: {{ db_migrate_first.rc }}"
+      when: db_migrate_first is defined
+
+    - name: Run database migration (second pass - must succeed)
+      command: "{{ dspace_install_dir }}/bin/dspace database migrate"
+      become: yes
+      become_user: "{{ dspace_user }}"
+      register: db_migrate_second
+      failed_when: db_migrate_second.rc != 0
+
+    - name: Display final migration results
+      debug:
+        msg: "Database migration completed successfully"
+      when: db_migrate_second.rc == 0
+
+- name: Copy Solr cores to Solr installation
+  shell: cp -R {{ dspace_install_dir }}/solr/* /var/solr/data/
+  become: yes
+  notify: restart solr
+  tags: solr_cores
+
+- name: Set Solr cores ownership
+  file:
+    path: /var/solr/data
+    owner: "{{ solr_user }}"
+    group: "{{ solr_group }}"
+    recurse: yes
+
+- name: Deploy DSpace server webapp to Tomcat
+  copy:
+    src: "{{ dspace_install_dir }}/webapps/server"
+    dest: "{{ tomcat_home }}/webapps/"
+    owner: "{{ tomcat_user }}"
+    group: "{{ tomcat_group }}"
+    mode: '0755'
+    remote_src: yes
+  notify: restart tomcat
+
+- name: Deploy DSpace REST webapp to Tomcat
+  copy:
+    src: "{{ dspace_install_dir }}/webapps/server"
+    dest: "{{ tomcat_home }}/webapps/ROOT"
+    owner: "{{ tomcat_user }}"
+    group: "{{ tomcat_group }}"
+    mode: '0755'
+    remote_src: yes
+  notify: restart tomcat
+
+- name: Create DSpace administrator account
+  expect:
+    command: "{{ dspace_install_dir }}/bin/dspace create-administrator"
+    responses:
+      "E-mail address": "{{ dspace_admin_email }}"
+      "First name": "{{ dspace_admin_firstname }}"
+      "Last name": "{{ dspace_admin_lastname }}"
+      "Password will not display on screen": "{{ dspace_admin_password }}"
+      "Again to confirm": "{{ dspace_admin_password }}"
+    timeout: 30
+  become: yes
+  become_user: "{{ dspace_user }}"
+  register: create_admin
+  ignore_errors: yes
+
+- name: Install expect package if admin creation failed
+  apt:
+    name: expect
+    state: present
+  when: create_admin.failed | default(false)
+
+- name: Retry creating DSpace administrator account
+  expect:
+    command: "{{ dspace_install_dir }}/bin/dspace create-administrator"
+    responses:
+      "E-mail address": "{{ dspace_admin_email }}"
+      "First name": "{{ dspace_admin_firstname }}"
+      "Last name": "{{ dspace_admin_lastname }}"
+      "Password will not display on screen": "{{ dspace_admin_password }}"
+      "Again to confirm": "{{ dspace_admin_password }}"
+    timeout: 30
+  become: yes
+  become_user: "{{ dspace_user }}"
+  when: create_admin.failed | default(false)
+
+- name: Set up DSpace cron jobs
+  cron:
+    name: "{{ item.name }}"
+    user: "{{ dspace_user }}"
+    job: "{{ item.job }}"
+    minute: "{{ item.minute | default('0') }}"
+    hour: "{{ item.hour | default('*') }}"
+    state: present
+  with_items:
+    - name: "DSpace filter-media"
+      job: "{{ dspace_install_dir }}/bin/dspace filter-media"
+      hour: "2"
+    - name: "DSpace index-discovery"
+      job: "{{ dspace_install_dir }}/bin/dspace index-discovery"
+      hour: "3"
+    - name: "DSpace cleanup"
+      job: "{{ dspace_install_dir }}/bin/dspace cleanup"
+      hour: "4"
+
+- name: Ensure handlers are flushed
+  meta: flush_handlers
+
+- name: Display DSpace installation info
+  debug:
+    msg:
+      - "DSpace {{ dspace_version }} has been installed successfully!"
+      - "Server URL: {{ dspace_server_url }}"
+      - "Admin Email: {{ dspace_admin_email }}"
+      - "Installation Directory: {{ dspace_install_dir }}"

@@ -1,0 +1,49 @@
+---
+- name: Build DSpace from Source
+  hosts: dspace_servers
+  become: yes
+
+  pre_tasks:
+    - name: Check if source code exists
+      stat:
+        path: "{{ dspace_source_dir_versioned }}/pom.xml"
+      register: source_exists
+
+    - name: Fail if source doesn't exist
+      fail:
+        msg: "DSpace source not found. Please run 'make dspace-download' first"
+      when: not source_exists.stat.exists
+
+    - name: Check Java
+      command: java -version
+      register: java_installed
+      changed_when: false
+      failed_when: false
+
+    - name: Fail if Java not installed
+      fail:
+        msg: "Java not installed. Please run 'make install-prerequisites' first"
+      when: java_installed.rc != 0
+
+  roles:
+    - dspace-base
+    - dspace-build
+
+  post_tasks:
+    - name: Display build complete message
+      debug:
+        msg:
+          - "================================================"
+          - " DSpace {{ dspace_version }} Build Complete!"
+          - "================================================"
+          - ""
+          - "Build artifacts created in:"
+          - "  {{ dspace_source_dir_versioned }}/dspace/target/dspace-installer"
+          - ""
+          - "Installation directory prepared at:"
+          - "  {{ dspace_install_dir_versioned }}"
+          - ""
+          - "Next Steps:"
+          - "  1. Run 'make dspace-install-only' to install DSpace"
+          - "  2. Or run 'make install-dspace' for complete installation"
+          - "================================================"

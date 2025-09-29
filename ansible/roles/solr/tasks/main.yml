@@ -1,0 +1,137 @@
+---
+- name: Create Solr group
+  group:
+    name: "{{ solr_group }}"
+    system: yes
+    state: present
+
+- name: Create Solr user
+  user:
+    name: "{{ solr_user }}"
+    group: "{{ solr_group }}"
+    home: "/var/solr"
+    shell: /bin/bash
+    system: yes
+    state: present
+
+- name: Download Solr
+  get_url:
+    url: "https://downloads.apache.org/solr/solr/{{ solr_version }}/solr-{{ solr_version }}.tgz"
+    dest: "/tmp/solr-{{ solr_version }}.tgz"
+    mode: '0644'
+
+- name: Extract Solr
+  unarchive:
+    src: "/tmp/solr-{{ solr_version }}.tgz"
+    dest: "/opt"
+    remote_src: yes
+    owner: "{{ solr_user }}"
+    group: "{{ solr_group }}"
+    creates: "/opt/solr-{{ solr_version }}"
+
+- name: Create Solr symlink
+  file:
+    src: "/opt/solr-{{ solr_version }}"
+    dest: "{{ solr_home }}"
+    state: link
+    owner: "{{ solr_user }}"
+    group: "{{ solr_group }}"
+
+- name: Create Solr directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ solr_user }}"
+    group: "{{ solr_group }}"
+    mode: '0755'
+  with_items:
+    - /var/solr
+    - /var/solr/data
+    - /var/solr/logs
+
+- name: Copy Solr init script
+  copy:
+    src: "{{ solr_home }}/bin/init.d/solr"
+    dest: /etc/init.d/solr
+    remote_src: yes
+    mode: '0755'
+
+- name: Create Solr environment file
+  template:
+    src: solr.in.sh.j2
+    dest: /etc/default/solr.in.sh
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Create Solr systemd service file
+  template:
+    src: solr.service.j2
+    dest: /etc/systemd/system/solr.service
+    owner: root
+    group: root
+    mode: '0644'
+  notify: reload systemd
+
+- name: Configure system-wide limits for Solr user
+  copy:
+    content: |
+      # Limits for Solr user
+      solr soft nofile 65000
+      solr hard nofile 65000
+      solr soft nproc 65000
+      solr hard nproc 65000
+    dest: /etc/security/limits.d/solr.conf
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Ensure PAM limits module is enabled
+  lineinfile:
+    path: /etc/pam.d/common-session
+    regexp: '^session.*required.*pam_limits.so'
+    line: 'session required pam_limits.so'
+    state: present
+
+- name: Ensure PAM limits module is enabled (non-interactive)
+  lineinfile:
+    path: /etc/pam.d/common-session-noninteractive
+    regexp: '^session.*required.*pam_limits.so'
+    line: 'session required pam_limits.so'
+    state: present
+
+- name: Set ulimits in solr user profile
+  blockinfile:
+    path: /var/solr/.bashrc
+    create: yes
+    owner: "{{ solr_user }}"
+    group: "{{ solr_group }}"
+    mode: '0644'
+    block: |
+      # Set ulimits for Solr
+      ulimit -n 65000
+      ulimit -u 65000
+
+- name: Start and enable Solr service
+  systemd:
+    name: solr
+    state: started
+    enabled: yes
+    daemon_reload: yes
+
+- name: Wait for Solr to be ready
+  uri:
+    url: "http://localhost:{{ solr_port }}/solr/#/admin/ping"
+    method: GET
+    status_code: 200
+  register: solr_ping
+  until: solr_ping.status == 200
+  retries: 30
+  delay: 5
+
+- name: Create restart solr handler
+  debug:
+    msg: "Solr configuration completed"
+
+- name: Ensure handlers are flushed
+  meta: flush_handlers

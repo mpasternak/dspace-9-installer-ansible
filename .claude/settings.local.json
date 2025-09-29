@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(make update-apt:*)",
+      "Bash(mkdir:*)",
+      "Read(//Users/mpasternak/Programowanie/DSpace/**)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
