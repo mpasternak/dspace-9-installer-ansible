@@ -28,9 +28,9 @@ This project provides a flexible, provider-agnostic framework for deploying DSpa
 │             │                        │
 │  ┌──────────▼─────────────────┐      │
 │  │    Provider Abstraction    │      │
-│  │  ┌──────┐ ┌────────┐ ┌────┐ │      │
-│  │  │ Tart │ │Vagrant │ │SSH │ │      │
-│  │  └──────┘ └──────┘ └────┘ │      │
+│  │  ┌──────┐ ┌────────┐ ┌────┐│      │
+│  │  │ Tart │ │Vagrant │ │SSH ││      │
+│  │  └──────┘ └────────┘ └────┘│      │
 │  └──────────┬─────────────────┘      │
 │             │                        │
 │  ┌──────────▼─────────────────┐      │
@@ -41,14 +41,14 @@ This project provides a flexible, provider-agnostic framework for deploying DSpa
                ▼
 ┌──────────────────────────────────────┐
 │         Target Systems               │
-│  ┌────────────────────────────┐      │
-│  │ Tart VM (macOS native)     │      │
-│  ├────────────────────────────┤      │
-│  │ Vagrant VM (cross-platform)│      │
-│  ├────────────────────────────┤      │
-│  │ Physical/Cloud Server      │      │
+│  ┌─────────────────────────────┐     │
+│  │ Tart VM (macOS native)      │     │
+│  ├─────────────────────────────┤     │
+│  │ Vagrant VM (cross-platform) │     │
+│  ├─────────────────────────────┤     │
+│  │ Physical/Cloud Server       │     │
 │  │ (AWS/Azure/GCP/DigitalOcean)│     │
-│  └────────────────────────────┘      │
+│  └─────────────────────────────┘     │
 └──────────────────────────────────────┘
 
 File Structure:
