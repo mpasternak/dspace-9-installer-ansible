@@ -6,7 +6,8 @@
       "Read(//Users/mpasternak/Programowanie/DSpace/**)",
       "Bash(make:*)",
       "WebFetch(domain:wiki.lyrasis.org)",
-      "WebSearch"
+      "WebSearch",
+      "Bash(chmod:*)"
     ],
     "deny": [],
     "ask": []

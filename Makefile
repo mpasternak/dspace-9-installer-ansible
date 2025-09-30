@@ -291,18 +291,18 @@ frontend-restart: ## Restart DSpace frontend (PM2 process)
 	@echo "🔄 Restarting DSpace frontend..."
 	@cd $(ANSIBLE_PLAYBOOK_DIR) && \
 		ansible -i $(ANSIBLE_INVENTORY) all -m shell \
-		-a "sudo -u dspace pm2 restart dspace-ui" --become
+		-a "sudo -u dspaceui pm2 restart dspace-ui" --become
 	@echo "✅ Frontend restarted"
 
 frontend-logs: ## View DSpace frontend PM2 logs
 	@echo "📋 Viewing DSpace frontend logs (Ctrl+C to exit)..."
-	@$(MAKE) provider-ssh -- "sudo -u dspace pm2 logs dspace-ui --lines 100"
+	@$(MAKE) provider-ssh -- "sudo -u dspaceui pm2 logs dspace-ui --lines 100"
 
 frontend-status: ## Check DSpace frontend status
 	@echo "📊 Checking DSpace frontend status..."
 	@cd $(ANSIBLE_PLAYBOOK_DIR) && \
 		ansible -i $(ANSIBLE_INVENTORY) all -m shell \
-		-a "sudo -u dspace pm2 status" --become
+		-a "sudo -u dspaceui pm2 status" --become
 
 install-complete: ## Complete installation: backend + frontend + nginx
 	@echo ""
@@ -341,6 +341,33 @@ frontend-github: ## Install frontend from GitHub branch (usage: make frontend-gi
 	@cd $(ANSIBLE_PLAYBOOK_DIR) && \
 		ansible-playbook $(ANSIBLE_VERBOSE) -i $(ANSIBLE_INVENTORY) install-frontend.yml \
 		-e "dspace_frontend_source_type=github" -e "dspace_frontend_github_branch=$(BRANCH)"
+
+# Frontend removal targets
+remove-frontend: ## Remove DSpace frontend completely (including PM2 settings and frontend user)
+	@echo ""
+	@echo "╔══════════════════════════════════════════════════════════╗"
+	@echo "║        WARNING: Removing DSpace Frontend                 ║"
+	@echo "╚══════════════════════════════════════════════════════════╝"
+	@echo ""
+	@echo "⚠️  This will completely remove:"
+	@echo "   - PM2 processes and configuration"
+	@echo "   - Systemd service (dspace-frontend)"
+	@echo "   - Frontend source code and build files"
+	@echo "   - Frontend user (dspaceui) and group"
+	@echo "   - All PM2 logs and runtime files"
+	@echo ""
+	@echo "The backend DSpace installation will remain intact."
+	@echo ""
+	@cd $(ANSIBLE_PLAYBOOK_DIR) && ansible-playbook $(ANSIBLE_VERBOSE) -i $(ANSIBLE_INVENTORY) remove-frontend.yml
+	@echo ""
+	@echo "✅ Frontend removal complete!"
+
+remove-frontend-force: ## Force remove frontend without confirmation prompt
+	@echo "🗑️  Force removing DSpace frontend..."
+	@cd $(ANSIBLE_PLAYBOOK_DIR) && \
+		ansible-playbook $(ANSIBLE_VERBOSE) -i $(ANSIBLE_INVENTORY) remove-frontend.yml \
+		-e "confirm_removal=yes"
+	@echo "✅ Frontend removed!"
 
 # Utility targets
 check-services: ## Check status of all DSpace services

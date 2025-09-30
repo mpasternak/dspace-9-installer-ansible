@@ -1,0 +1,161 @@
+---
+- name: Remove DSpace Frontend Completely
+  hosts: dspace_servers
+  become: yes
+
+  vars_prompt:
+    - name: confirm_removal
+      prompt: "Are you sure you want to remove the DSpace frontend completely? Type 'yes' to confirm"
+      private: no
+
+  pre_tasks:
+    - name: Verify confirmation
+      fail:
+        msg: "Frontend removal cancelled by user"
+      when: confirm_removal != 'yes'
+
+  tasks:
+    # Stop and remove PM2 processes
+    - name: Check if PM2 process exists
+      shell: pm2 list | grep -q {{ pm2_app_name }}
+      become_user: "{{ frontend_user }}"
+      register: pm2_exists
+      failed_when: false
+      changed_when: false
+
+    - name: Stop PM2 processes
+      shell: pm2 delete {{ pm2_app_name }}
+      become_user: "{{ frontend_user }}"
+      when: pm2_exists.rc == 0
+      ignore_errors: yes
+
+    - name: Kill all PM2 processes
+      shell: pm2 kill
+      become_user: "{{ frontend_user }}"
+      ignore_errors: yes
+
+    # Stop and remove systemd service
+    - name: Check if dspace-frontend service exists
+      stat:
+        path: /etc/systemd/system/dspace-frontend.service
+      register: service_file
+
+    - name: Stop dspace-frontend service
+      systemd:
+        name: dspace-frontend
+        state: stopped
+        enabled: no
+      when: service_file.stat.exists
+      ignore_errors: yes
+
+    - name: Remove dspace-frontend service file
+      file:
+        path: /etc/systemd/system/dspace-frontend.service
+        state: absent
+      when: service_file.stat.exists
+
+    - name: Reload systemd daemon
+      systemd:
+        daemon_reload: yes
+      when: service_file.stat.exists
+
+    # Remove frontend directories
+    - name: Remove frontend source directory
+      file:
+        path: "{{ dspace_frontend_source_dir }}"
+        state: absent
+
+    - name: Remove frontend symlink
+      file:
+        path: "{{ dspace_frontend_install_dir }}"
+        state: absent
+
+    - name: Remove PM2 home directory for frontend user
+      file:
+        path: "/home/{{ frontend_user }}/.pm2"
+        state: absent
+
+    - name: Remove PM2 log directory
+      file:
+        path: "{{ pm2_log_dir }}"
+        state: absent
+      when: pm2_log_dir is defined
+
+    # Remove nginx configuration for frontend (if exists)
+    - name: Check if nginx frontend config exists
+      stat:
+        path: /etc/nginx/sites-enabled/dspace-frontend
+      register: nginx_config
+
+    - name: Remove nginx frontend configuration
+      file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /etc/nginx/sites-enabled/dspace-frontend
+        - /etc/nginx/sites-available/dspace-frontend
+      when: nginx_config.stat.exists
+
+    - name: Reload nginx if config was removed
+      systemd:
+        name: nginx
+        state: reloaded
+      when: nginx_config.stat.exists
+      ignore_errors: yes
+
+    # Remove frontend user
+    - name: Get list of processes owned by frontend user
+      shell: ps -u {{ frontend_user }} -o pid= 2>/dev/null || true
+      register: user_processes
+      changed_when: false
+
+    - name: Kill all processes owned by frontend user
+      shell: kill -9 {{ item }}
+      loop: "{{ user_processes.stdout_lines }}"
+      when: user_processes.stdout_lines | length > 0
+      ignore_errors: yes
+
+    - name: Remove frontend user
+      user:
+        name: "{{ frontend_user }}"
+        state: absent
+        remove: yes
+        force: yes
+
+    - name: Remove frontend group
+      group:
+        name: "{{ frontend_group }}"
+        state: absent
+
+    # Clean up any remaining PM2 files
+    - name: Clean up global PM2 files for frontend
+      file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - "/home/{{ frontend_user }}"
+        - "/var/log/pm2-{{ frontend_user }}.log"
+        - "/var/run/pm2-{{ frontend_user }}.pid"
+      ignore_errors: yes
+
+  post_tasks:
+    - name: Display removal complete message
+      debug:
+        msg:
+          - "================================================"
+          - " DSpace Frontend Removal Complete!"
+          - "================================================"
+          - ""
+          - "The following have been removed:"
+          - "  ✓ PM2 processes and configuration"
+          - "  ✓ Systemd service (dspace-frontend)"
+          - "  ✓ Frontend source directory"
+          - "  ✓ Frontend user ({{ frontend_user }})"
+          - "  ✓ Frontend group ({{ frontend_group }})"
+          - "  ✓ PM2 logs and runtime files"
+          - ""
+          - "Note: The backend DSpace installation remains intact"
+          - ""
+          - "To reinstall the frontend, run:"
+          - "  make install-frontend"
+          - "================================================"

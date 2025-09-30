@@ -2,6 +2,9 @@
 # Main task file for DSpace frontend role
 # This includes all sub-tasks in sequence
 
+- name: Create frontend user
+  include_tasks: user.yml
+
 - name: Install prerequisites (Node.js, PM2, build tools)
   include_tasks: prerequisites.yml
 

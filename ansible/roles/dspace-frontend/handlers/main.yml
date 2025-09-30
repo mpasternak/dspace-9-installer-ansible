@@ -2,7 +2,7 @@
 - name: restart dspace-frontend
   shell: |
     pm2 restart {{ pm2_app_name }} || pm2 start {{ dspace_frontend_source_dir }}/dspace-ui.json
-  become_user: "{{ dspace_user }}"
+  become_user: "{{ frontend_user }}"
   environment:
     PATH: "/usr/bin:/bin:/usr/local/bin"
   register: restart_result
@@ -10,7 +10,7 @@
 
 - name: reload dspace-frontend
   shell: pm2 reload {{ pm2_app_name }}
-  become_user: "{{ dspace_user }}"
+  become_user: "{{ frontend_user }}"
   environment:
     PATH: "/usr/bin:/bin:/usr/local/bin"
   register: reload_result
@@ -19,7 +19,7 @@
 
 - name: stop dspace-frontend
   shell: pm2 stop {{ pm2_app_name }}
-  become_user: "{{ dspace_user }}"
+  become_user: "{{ frontend_user }}"
   environment:
     PATH: "/usr/bin:/bin:/usr/local/bin"
   register: stop_result
@@ -28,7 +28,7 @@
 
 - name: start dspace-frontend
   shell: pm2 start {{ dspace_frontend_source_dir }}/dspace-ui.json
-  become_user: "{{ dspace_user }}"
+  become_user: "{{ frontend_user }}"
   environment:
     PATH: "/usr/bin:/bin:/usr/local/bin"
   register: start_result

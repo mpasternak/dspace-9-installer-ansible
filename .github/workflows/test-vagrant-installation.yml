@@ -1,0 +1,402 @@
+# ============================================================================
+# DSpace 9 Installation Testing with Vagrant
+# ============================================================================
+#
+# PURPOSE: This GitHub Action is for CI TESTING purposes only!
+#          It creates a Vagrant VM with Ubuntu 24.04 LTS and tests the
+#          complete DSpace installation using Ansible.
+#
+# REQUIREMENTS:
+# - Runs on macOS runners (which support hardware virtualization)
+# - Creates a real VM using Vagrant (not a container)
+# - Tests the full installation process as it would run on developer machines
+#
+# ============================================================================
+
+name: Test DSpace Installation (Vagrant)
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      test_type:
+        description: 'Type of installation to test'
+        required: true
+        default: 'complete'
+        type: choice
+        options:
+          - complete      # Full installation (backend + frontend)
+          - backend       # Backend only with prerequisites
+          - prerequisites # Just prerequisites
+      verbose:
+        description: 'Enable verbose Ansible output'
+        required: false
+        default: false
+        type: boolean
+
+# Prevent multiple runs for the same branch
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  vagrant-test:
+    # Use macOS runner which supports hardware virtualization for Vagrant
+    # Note: This is more expensive than Linux runners in terms of GitHub Actions minutes
+    runs-on: macos-latest
+
+    timeout-minutes: 120  # 2 hours max (DSpace build can be slow)
+
+    steps:
+      # ======================================================================
+      # Step 1: Checkout Repository
+      # ======================================================================
+      - name: "📦 Checkout repository"
+        uses: actions/checkout@v4
+
+      # ======================================================================
+      # Step 2: System Information
+      # ======================================================================
+      - name: "ℹ️ System information"
+        run: |
+          echo "================================================"
+          echo "CI Testing Environment Information"
+          echo "================================================"
+          echo "Runner OS: $(uname -s)"
+          echo "Runner Version: $(uname -r)"
+          echo "Runner Architecture: $(uname -m)"
+          echo "Available CPU cores: $(sysctl -n hw.ncpu)"
+          echo "Available memory: $(( $(sysctl -n hw.memsize) / 1073741824 )) GB"
+          echo "Available disk space:"
+          df -h /
+          echo "================================================"
+
+      # ======================================================================
+      # Step 3: Install Dependencies
+      # ======================================================================
+      - name: "🔧 Install Vagrant and dependencies"
+        run: |
+          echo "================================================"
+          echo "Installing Vagrant and dependencies for CI testing"
+          echo "================================================"
+
+          # Install or update Homebrew
+          /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)" || brew update
+
+          # Install Vagrant and VirtualBox
+          brew install --cask vagrant virtualbox
+
+          # Install Python and Ansible
+          brew install python@3.11
+
+          # Install pipx and Ansible
+          brew install pipx
+          pipx ensurepath
+          export PATH="$HOME/.local/bin:$PATH"
+          pipx install --include-deps ansible
+
+          # Verify installations
+          echo ""
+          echo "Verifying installations:"
+          vagrant --version
+          VBoxManage --version
+          ansible --version
+
+          echo "✅ Dependencies installed successfully"
+
+      # ======================================================================
+      # Step 4: Configure Vagrant Environment
+      # ======================================================================
+      - name: "⚙️ Configure Vagrant environment"
+        run: |
+          echo "================================================"
+          echo "Configuring Vagrant for CI testing"
+          echo "================================================"
+
+          # Create Vagrantfile if it doesn't exist or override with CI-specific one
+          cat > Vagrantfile << 'EOF'
+          # -*- mode: ruby -*-
+          # vi: set ft=ruby :
+
+          # ============================================================================
+          # CI Testing Vagrantfile for DSpace Installation
+          # ============================================================================
+          # This Vagrantfile is used for GitHub Actions CI testing only!
+          # It creates an Ubuntu 24.04 VM for testing the installation process.
+          # ============================================================================
+
+          Vagrant.configure("2") do |config|
+            # Use Ubuntu 24.04 LTS
+            config.vm.box = "bento/ubuntu-24.04"
+            config.vm.hostname = "dspace-server"
+
+            # VM Configuration
+            config.vm.provider "virtualbox" do |vb|
+              vb.name = "dspace-ci-test"
+              vb.memory = "6144"  # 6GB RAM for CI testing
+              vb.cpus = 2
+              vb.customize ["modifyvm", :id, "--natdnshostresolver1", "on"]
+              vb.customize ["modifyvm", :id, "--ioapic", "on"]
+            end
+
+            # Network configuration
+            config.vm.network "private_network", type: "dhcp"
+
+            # Create admin user for Ansible
+            config.vm.provision "shell", inline: <<-SHELL
+              # Create admin user if doesn't exist
+              if ! id -u admin >/dev/null 2>&1; then
+                useradd -m -s /bin/bash -G sudo admin
+                echo "admin:admin" | chpasswd
+                echo "admin ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/admin
+              fi
+
+              # Setup SSH key authentication
+              mkdir -p /home/admin/.ssh
+              chmod 700 /home/admin/.ssh
+              touch /home/admin/.ssh/authorized_keys
+              chmod 600 /home/admin/.ssh/authorized_keys
+              chown -R admin:admin /home/admin/.ssh
+
+              # Enable password authentication temporarily for CI
+              sed -i 's/PasswordAuthentication no/PasswordAuthentication yes/' /etc/ssh/sshd_config
+              systemctl restart sshd
+
+              # Basic system setup
+              apt-get update
+              apt-get install -y python3 python3-pip python3-apt
+
+              echo "✅ VM provisioning complete"
+            SHELL
+
+            # Sync the project directory
+            config.vm.synced_folder ".", "/vagrant", type: "virtualbox"
+          end
+          EOF
+
+          echo "✅ Vagrantfile configured for CI testing"
+
+      # ======================================================================
+      # Step 5: Start Vagrant VM
+      # ======================================================================
+      - name: "🚀 Start Vagrant VM"
+        run: |
+          echo "================================================"
+          echo "Starting Vagrant VM for testing"
+          echo "================================================"
+
+          # Set provider explicitly
+          export VAGRANT_DEFAULT_PROVIDER=virtualbox
+
+          # Start the VM
+          vagrant up --provider=virtualbox
+
+          # Wait for VM to be fully ready
+          sleep 10
+
+          # Show VM status
+          vagrant status
+
+          # Test SSH connectivity
+          vagrant ssh -c "echo 'VM is accessible via SSH'"
+
+          echo "✅ Vagrant VM started successfully"
+
+      # ======================================================================
+      # Step 6: Setup SSH for Ansible
+      # ======================================================================
+      - name: "🔑 Setup SSH keys for Ansible"
+        run: |
+          echo "================================================"
+          echo "Setting up SSH for Ansible connection"
+          echo "================================================"
+
+          # Generate SSH key if doesn't exist
+          if [ ! -f ~/.ssh/id_ed25519 ]; then
+            ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519 -N ""
+          fi
+
+          # Get VM SSH info
+          vagrant ssh-config > /tmp/vagrant-ssh-config
+          VM_IP=$(vagrant ssh-config | grep HostName | awk '{print $2}')
+          VM_PORT=$(vagrant ssh-config | grep Port | awk '{print $2}')
+          VM_KEY=$(vagrant ssh-config | grep IdentityFile | awk '{print $2}')
+
+          echo "VM IP: $VM_IP"
+          echo "VM Port: $VM_PORT"
+
+          # Copy our SSH key to the VM
+          cat ~/.ssh/id_ed25519.pub | vagrant ssh -c "cat >> /home/admin/.ssh/authorized_keys"
+
+          # Test SSH connection as admin user
+          ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_ed25519 -p $VM_PORT admin@$VM_IP "echo 'SSH as admin user works'"
+
+          echo "✅ SSH configured successfully"
+
+      # ======================================================================
+      # Step 7: Run Installation Tests
+      # ======================================================================
+      - name: "🧪 Run DSpace installation (TEST MODE)"
+        run: |
+          echo "================================================"
+          echo "Starting DSpace Installation Test"
+          echo "Test Type: ${{ github.event.inputs.test_type || 'complete' }}"
+          echo "Verbose: ${{ github.event.inputs.verbose || 'false' }}"
+          echo "================================================"
+          echo ""
+          echo "⚠️  THIS IS A CI TEST ENVIRONMENT ⚠️"
+          echo ""
+
+          # Export PATH for pipx
+          export PATH="$HOME/.local/bin:$PATH"
+
+          # Set Vagrant as provider
+          export PROVIDER=vagrant
+
+          # Set verbose flag if requested
+          if [ "${{ github.event.inputs.verbose }}" = "true" ]; then
+            export ANSIBLE_VERBOSE="-vvv"
+          fi
+
+          # Configure developer machine (installs Ansible locally if needed)
+          make configure-developer-machine
+
+          # Run the appropriate test
+          TEST_TYPE="${{ github.event.inputs.test_type || 'complete' }}"
+
+          case "$TEST_TYPE" in
+            prerequisites)
+              echo "📦 Testing prerequisites installation..."
+              make update-apt
+              make install-prerequisites
+              ;;
+            backend)
+              echo "🔧 Testing backend installation..."
+              make update-apt
+              make install-prerequisites
+              make install-dspace
+              ;;
+            complete)
+              echo "🏗️ Testing complete installation..."
+              make update-apt
+              make install-complete
+              ;;
+          esac
+
+          echo ""
+          echo "✅ Installation test completed successfully!"
+
+      # ======================================================================
+      # Step 8: Validate Installation
+      # ======================================================================
+      - name: "✔️ Validate installation"
+        if: success()
+        run: |
+          echo "================================================"
+          echo "Validating DSpace Installation in VM"
+          echo "================================================"
+
+          # Function to run commands in VM
+          vm_exec() {
+            vagrant ssh -c "$1"
+          }
+
+          # Check services
+          echo "🔍 Checking services..."
+          vm_exec "sudo systemctl is-active postgresql" && echo "✅ PostgreSQL is running" || echo "❌ PostgreSQL not running"
+          vm_exec "sudo systemctl is-active tomcat" && echo "✅ Tomcat is running" || echo "❌ Tomcat not running"
+          vm_exec "sudo systemctl is-active solr" && echo "✅ Solr is running" || echo "❌ Solr not running"
+
+          # Check directories
+          echo ""
+          echo "📁 Checking directories..."
+          vm_exec "test -d /opt/dspace" && echo "✅ DSpace installed" || echo "❌ DSpace not found"
+          vm_exec "test -d /opt/solr" && echo "✅ Solr installed" || echo "❌ Solr not found"
+
+          # Check database (if backend installed)
+          if [[ "${{ github.event.inputs.test_type }}" != "prerequisites" ]]; then
+            echo ""
+            echo "🗄️ Checking database..."
+            vm_exec "sudo -u postgres psql -d dspace -c 'SELECT 1;'" && echo "✅ Database accessible" || echo "❌ Database not accessible"
+          fi
+
+          # Check frontend (if complete installation)
+          if [[ "${{ github.event.inputs.test_type }}" == "complete" ]]; then
+            echo ""
+            echo "🌐 Checking frontend..."
+            vm_exec "curl -s -o /dev/null -w '%{http_code}' http://localhost:4000" | grep -q "200" && echo "✅ Frontend responding" || echo "⚠️ Frontend not responding"
+          fi
+
+          echo ""
+          echo "✅ Validation complete"
+
+      # ======================================================================
+      # Step 9: Collect Logs on Failure
+      # ======================================================================
+      - name: "📋 Collect logs on failure"
+        if: failure()
+        run: |
+          echo "================================================"
+          echo "Collecting logs for debugging"
+          echo "================================================"
+
+          # Create logs directory
+          mkdir -p ci-logs
+
+          # Collect DSpace logs
+          vagrant ssh -c "sudo tar -czf /tmp/dspace-logs.tar.gz /opt/dspace/log/ 2>/dev/null || true"
+          vagrant scp dspace-server:/tmp/dspace-logs.tar.gz ci-logs/ || true
+
+          # Collect system logs
+          vagrant ssh -c "sudo journalctl -xe --no-pager > /tmp/system.log"
+          vagrant scp dspace-server:/tmp/system.log ci-logs/ || true
+
+          # Collect service status
+          vagrant ssh -c "sudo systemctl status postgresql tomcat solr --no-pager > /tmp/services.log 2>&1"
+          vagrant scp dspace-server:/tmp/services.log ci-logs/ || true
+
+          # Show last 50 lines of logs in CI output
+          echo ""
+          echo "Recent system logs:"
+          tail -n 50 ci-logs/system.log || true
+
+          echo ""
+          echo "Service status:"
+          cat ci-logs/services.log || true
+
+      # ======================================================================
+      # Step 10: Upload Test Artifacts
+      # ======================================================================
+      - name: "💾 Upload test artifacts"
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vagrant-test-logs-${{ github.run_number }}
+          path: ci-logs/
+          retention-days: 7
+          if-no-files-found: ignore
+
+      # ======================================================================
+      # Step 11: Cleanup
+      # ======================================================================
+      - name: "🧹 Cleanup Vagrant VM"
+        if: always()
+        run: |
+          echo "================================================"
+          echo "Cleaning up Vagrant VM"
+          echo "================================================"
+
+          # Destroy the VM to free resources
+          vagrant destroy -f || true
+
+          # Remove Vagrant files
+          rm -rf .vagrant || true
+
+          echo "✅ Cleanup complete"
+
+# ============================================================================
+# End of Vagrant CI Testing Workflow
+# ============================================================================

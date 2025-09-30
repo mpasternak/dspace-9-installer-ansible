@@ -1,0 +1,27 @@
+---
+# Create frontend user and group
+
+- name: Create frontend group
+  group:
+    name: "{{ frontend_group }}"
+    state: present
+    system: no
+
+- name: Create frontend user
+  user:
+    name: "{{ frontend_user }}"
+    group: "{{ frontend_group }}"
+    home: "/home/{{ frontend_user }}"
+    shell: /bin/bash
+    create_home: yes
+    state: present
+    system: no
+    comment: "DSpace Frontend User"
+
+- name: Ensure frontend user home directory has correct permissions
+  file:
+    path: "/home/{{ frontend_user }}"
+    state: directory
+    owner: "{{ frontend_user }}"
+    group: "{{ frontend_group }}"
+    mode: '0755'

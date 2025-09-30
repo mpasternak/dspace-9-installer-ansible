@@ -56,5 +56,5 @@
     path: "{{ pm2_log_dir }}"
     state: directory
     owner: "{{ pm2_user }}"
-    group: "{{ dspace_group }}"
+    group: "{{ frontend_group }}"
     mode: '0755'

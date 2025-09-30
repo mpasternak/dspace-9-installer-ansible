@@ -5,8 +5,8 @@
   file:
     path: "{{ dspace_frontend_source_dir }}"
     state: directory
-    owner: "{{ dspace_user }}"
-    group: "{{ dspace_group }}"
+    owner: "{{ frontend_user }}"
+    group: "{{ frontend_group }}"
     mode: '0755'
 
 - name: Download DSpace Angular from release
@@ -16,8 +16,8 @@
         src: "{{ dspace_frontend_release_url }}"
         dest: /tmp
         remote_src: yes
-        owner: "{{ dspace_user }}"
-        group: "{{ dspace_group }}"
+        owner: "{{ frontend_user }}"
+        group: "{{ frontend_group }}"
       register: download_result
 
     - name: Move extracted files to source directory
@@ -34,5 +34,5 @@
     dest: "{{ dspace_frontend_source_dir }}"
     version: "{{ dspace_frontend_github_branch }}"
     force: yes
-  become_user: "{{ dspace_user }}"
+  become_user: "{{ frontend_user }}"
   when: dspace_frontend_source_type == "github"

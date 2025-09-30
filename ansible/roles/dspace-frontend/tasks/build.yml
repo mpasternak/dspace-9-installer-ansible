@@ -6,7 +6,7 @@
   npm:
     path: "{{ dspace_frontend_source_dir }}"
     state: present
-  become_user: "{{ dspace_user }}"
+  become_user: "{{ frontend_user }}"
   environment:
     NODE_OPTIONS: "--max-old-space-size=4096"
 
@@ -14,7 +14,7 @@
   command: npm run build:prod
   args:
     chdir: "{{ dspace_frontend_source_dir }}"
-  become_user: "{{ dspace_user }}"
+  become_user: "{{ frontend_user }}"
   environment:
     NODE_OPTIONS: "--max-old-space-size=4096"
     NODE_ENV: "production"
@@ -26,34 +26,36 @@
   command: pm2 start dspace-ui.json
   args:
     chdir: "{{ dspace_frontend_source_dir }}"
-  become_user: "{{ dspace_user }}"
+  become_user: "{{ frontend_user }}"
   register: pm2_start
   changed_when: "'online' in pm2_start.stdout"
   ignore_errors: yes
 
 - name: Save PM2 process list
   command: pm2 save
-  become_user: "{{ dspace_user }}"
+  become_user: "{{ frontend_user }}"
   changed_when: true
 
-- name: Generate PM2 startup script
-  command: pm2 startup systemd -u {{ dspace_user }} --hp /home/{{ dspace_user }}
-  register: pm2_startup
-  changed_when: true
-
-- name: Enable PM2 startup on boot
-  shell: "{{ pm2_startup.stdout_lines[-1] }}"
-  when: pm2_startup.stdout_lines | length > 0
+- name: Create PM2 systemd service file
+  template:
+    src: dspace-frontend.service.j2
+    dest: /etc/systemd/system/dspace-frontend.service
+    owner: root
+    group: root
+    mode: '0644'
   become: yes
-  changed_when: true
 
-- name: Ensure PM2 service is enabled
+- name: Reload systemd daemon
   systemd:
-    name: pm2-{{ dspace_user }}
+    daemon_reload: yes
+  become: yes
+
+- name: Enable and start PM2 service
+  systemd:
+    name: dspace-frontend
     enabled: yes
     state: started
-    daemon_reload: yes
-  ignore_errors: yes
+  become: yes
 
 # Verification
 - name: Wait for frontend to be ready

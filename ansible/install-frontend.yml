@@ -36,7 +36,7 @@
 
     - name: Display PM2 process status
       command: pm2 list
-      become_user: "{{ dspace_user }}"
+      become_user: "{{ frontend_user }}"
       register: pm2_status
       changed_when: false
 
@@ -83,10 +83,10 @@
           - "  Via Nginx: https://{{ domain_name }}/server/api"
           - ""
           - "PM2 Process Management:"
-          - "  Status: sudo -u {{ dspace_user }} pm2 status"
-          - "  Logs: sudo -u {{ dspace_user }} pm2 logs {{ pm2_app_name }}"
-          - "  Restart: sudo -u {{ dspace_user }} pm2 restart {{ pm2_app_name }}"
-          - "  Stop: sudo -u {{ dspace_user }} pm2 stop {{ pm2_app_name }}"
+          - "  Status: sudo -u {{ frontend_user }} pm2 status"
+          - "  Logs: sudo -u {{ frontend_user }} pm2 logs {{ pm2_app_name }}"
+          - "  Restart: sudo -u {{ frontend_user }} pm2 restart {{ pm2_app_name }}"
+          - "  Stop: sudo -u {{ frontend_user }} pm2 stop {{ pm2_app_name }}"
           - ""
           - "Frontend Configuration:"
           - "  Config: {{ dspace_frontend_config_dir }}/config.prod.yml"

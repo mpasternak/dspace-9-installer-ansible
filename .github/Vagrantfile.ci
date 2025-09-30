@@ -1,0 +1,171 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+# ============================================================================
+# CI Testing Vagrantfile for DSpace 9 Installation
+# ============================================================================
+#
+# PURPOSE: This Vagrantfile is for GitHub Actions CI TESTING only!
+#          It creates an Ubuntu 24.04 VM optimized for automated testing.
+#
+# DO NOT use this for development - it has insecure settings for CI!
+# For development, use the provider-specific configurations in the main project.
+#
+# ============================================================================
+
+Vagrant.configure("2") do |config|
+  # Base box - Ubuntu 24.04 LTS
+  config.vm.box = "bento/ubuntu-24.04"
+  config.vm.box_check_update = false
+
+  # Hostname
+  config.vm.hostname = "dspace-ci-test"
+
+  # Provider-specific configuration
+  config.vm.provider "virtualbox" do |vb|
+    vb.name = "dspace-ci-test-vm"
+    vb.memory = "8192"  # 8GB RAM for full stack testing
+    vb.cpus = 4         # Use 4 CPUs for faster builds
+    vb.linked_clone = true if Vagrant::VERSION >= '1.8.0'
+
+    # Optimize for CI performance
+    vb.customize ["modifyvm", :id, "--natdnshostresolver1", "on"]
+    vb.customize ["modifyvm", :id, "--ioapic", "on"]
+    vb.customize ["modifyvm", :id, "--largepages", "on"]
+    vb.customize ["modifyvm", :id, "--vtxvpid", "on"]
+    vb.customize ["modifyvm", :id, "--hwvirtex", "on"]
+    vb.customize ["modifyvm", :id, "--nestedpaging", "on"]
+  end
+
+  # Alternative provider for GitHub Actions (if using other providers)
+  config.vm.provider "vmware_desktop" do |vmware|
+    vmware.vmx["memsize"] = "8192"
+    vmware.vmx["numvcpus"] = "4"
+  end
+
+  # Network configuration
+  config.vm.network "private_network", type: "dhcp"
+  config.vm.network "forwarded_port", guest: 8080, host: 8080, auto_correct: true  # Tomcat
+  config.vm.network "forwarded_port", guest: 8983, host: 8983, auto_correct: true  # Solr
+  config.vm.network "forwarded_port", guest: 4000, host: 4000, auto_correct: true  # Frontend
+  config.vm.network "forwarded_port", guest: 5432, host: 5432, auto_correct: true  # PostgreSQL
+
+  # Disable default synced folder for CI (not needed)
+  config.vm.synced_folder ".", "/vagrant", disabled: false
+
+  # Base provisioning script
+  config.vm.provision "shell", name: "base-setup", inline: <<-SHELL
+    set -e
+
+    echo "================================================"
+    echo "Setting up CI testing environment"
+    echo "================================================"
+
+    # Update system
+    export DEBIAN_FRONTEND=noninteractive
+    apt-get update
+    apt-get upgrade -y
+
+    # Install essential packages
+    apt-get install -y \
+      python3 \
+      python3-pip \
+      python3-apt \
+      python3-venv \
+      sudo \
+      curl \
+      wget \
+      git \
+      build-essential \
+      software-properties-common \
+      apt-transport-https \
+      ca-certificates \
+      gnupg \
+      lsb-release
+
+    # Create admin user for Ansible (matching project expectations)
+    if ! id -u admin >/dev/null 2>&1; then
+      useradd -m -s /bin/bash admin
+      usermod -aG sudo admin
+      echo "admin:admin" | chpasswd
+      echo "admin ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/admin
+      chmod 0440 /etc/sudoers.d/admin
+    fi
+
+    # Setup SSH directory for admin user
+    mkdir -p /home/admin/.ssh
+    chmod 700 /home/admin/.ssh
+    touch /home/admin/.ssh/authorized_keys
+    chmod 600 /home/admin/.ssh/authorized_keys
+    chown -R admin:admin /home/admin/.ssh
+
+    # Configure SSH for CI (less secure, but OK for testing)
+    sed -i 's/#PermitRootLogin.*/PermitRootLogin no/' /etc/ssh/sshd_config
+    sed -i 's/#PasswordAuthentication.*/PasswordAuthentication yes/' /etc/ssh/sshd_config
+    sed -i 's/#PubkeyAuthentication.*/PubkeyAuthentication yes/' /etc/ssh/sshd_config
+    systemctl restart sshd
+
+    echo "✅ Base CI environment setup complete"
+  SHELL
+
+  # Performance tuning for CI
+  config.vm.provision "shell", name: "performance-tuning", inline: <<-SHELL
+    # Increase system limits for build processes
+    cat >> /etc/security/limits.conf << EOF
+* soft nofile 65536
+* hard nofile 65536
+* soft nproc 32768
+* hard nproc 32768
+EOF
+
+    # Optimize sysctl for CI workloads
+    cat >> /etc/sysctl.conf << EOF
+# CI Performance Tuning
+vm.swappiness = 10
+vm.dirty_ratio = 15
+vm.dirty_background_ratio = 5
+net.core.rmem_max = 134217728
+net.core.wmem_max = 134217728
+net.ipv4.tcp_rmem = 4096 87380 134217728
+net.ipv4.tcp_wmem = 4096 65536 134217728
+EOF
+    sysctl -p
+
+    echo "✅ Performance tuning applied"
+  SHELL
+
+  # Ansible prerequisites
+  config.vm.provision "shell", name: "ansible-prep", inline: <<-SHELL
+    # Ensure Python is available for Ansible
+    if ! command -v python3 &> /dev/null; then
+      apt-get update && apt-get install -y python3 python3-apt
+    fi
+
+    # Create ansible temp directory
+    mkdir -p /tmp/ansible
+    chmod 1777 /tmp/ansible
+
+    echo "✅ System ready for Ansible provisioning"
+  SHELL
+
+  # CI-specific marker
+  config.vm.provision "shell", name: "ci-marker", inline: <<-SHELL
+    # Mark this as a CI environment
+    echo "CI_ENVIRONMENT=true" > /etc/environment
+    echo "DEBIAN_FRONTEND=noninteractive" >> /etc/environment
+
+    # Create CI marker file
+    touch /etc/ci-test-vm
+
+    echo "================================================"
+    echo "CI Test VM Setup Complete"
+    echo "================================================"
+    echo "VM is ready for DSpace installation testing"
+    echo "Run 'make install-complete' to test the full stack"
+    echo "================================================"
+  SHELL
+end
+
+# ============================================================================
+# End of CI Vagrantfile
+# ============================================================================
