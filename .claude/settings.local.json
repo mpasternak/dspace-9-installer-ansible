@@ -7,7 +7,8 @@
       "Bash(make:*)",
       "WebFetch(domain:wiki.lyrasis.org)",
       "WebSearch",
-      "Bash(chmod:*)"
+      "Bash(chmod:*)",
+      "Bash(docker run:*)"
     ],
     "deny": [],
     "ask": []
