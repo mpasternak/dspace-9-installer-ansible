@@ -112,6 +112,8 @@ jobs:
               unzip \
               bzip2 \
               xz-utils \
+              locales \
+              tzdata \
               && rm -rf /tmp/* /var/tmp/*
 
           # Remove unnecessary systemd units
