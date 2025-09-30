@@ -3,6 +3,21 @@
   hosts: dspace_servers
   become: yes
   tasks:
+    - name: Check if running in Docker container
+      stat:
+        path: /.dockerenv
+      register: dockerenv_check
+
+    - name: Check for Docker in cgroup (alternative detection)
+      shell: cat /proc/1/cgroup | grep -q docker
+      register: cgroup_docker_check
+      failed_when: false
+      changed_when: false
+
+    - name: Set Docker detection fact
+      set_fact:
+        is_docker: "{{ dockerenv_check.stat.exists or cgroup_docker_check.rc == 0 }}"
+
     - name: Update apt cache
       apt:
         update_cache: yes
@@ -17,7 +32,9 @@
     - name: Set hostname to match domain name
       hostname:
         name: "{{ domain_name.split('.')[0] }}"
-      when: domain_name is defined
+      when:
+        - domain_name is defined
+        - not is_docker
 
     - name: Add domain name to /etc/hosts
       lineinfile:
@@ -26,7 +43,16 @@
         line: '127.0.0.1 {{ domain_name }} {{ domain_name.split(".")[0] }}'
         insertafter: '^127\.0\.0\.1\s+localhost'
         state: present
-      when: domain_name is defined
+      when:
+        - domain_name is defined
+        - not is_docker
+
+    - name: Display Docker environment notice
+      debug:
+        msg: "Running in Docker container - skipping hostname configuration"
+      when:
+        - domain_name is defined
+        - is_docker
 
     - name: Check if reboot is required
       stat:
