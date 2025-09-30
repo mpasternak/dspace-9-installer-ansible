@@ -101,6 +101,7 @@ provider-copy-ssh-key: ## Copy SSH key to Docker container
 	else \
 		echo "⚠️  sshpass not installed, manual SSH key setup may be required"; \
 	fi
+	@echo "✅ SSH key setup complete"
 
 provider-install-deps: ## Install Docker dependencies
 	@echo "📦 Checking Docker installation..."

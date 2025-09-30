@@ -231,18 +231,18 @@ jobs:
 
           # Create Ansible inventory for Docker container
           cat > ansible/inventory/docker.ini << 'EOF'
-          [all]
+          [dspace_servers]
           dspace-server ansible_host=localhost ansible_port=2222 ansible_user=admin ansible_ssh_private_key_file=~/.ssh/id_ed25519
 
-          [all:vars]
+          [dspace_servers:vars]
           ansible_python_interpreter=/usr/bin/python3
           ansible_ssh_common_args='-o StrictHostKeyChecking=no'
           EOF
 
           # Test Ansible connection
           cd ansible
-          ansible -i inventory/docker.ini all -m ping
-          ansible -i inventory/docker.ini all -m shell -a "systemctl status"
+          ansible -i inventory/docker.ini dspace_servers -m ping
+          ansible -i inventory/docker.ini dspace_servers -m shell -a "systemctl status"
 
           echo "✅ SSH and Ansible configured"
 
@@ -263,11 +263,27 @@ jobs:
           # Set verbose flag if requested
           if [ "${{ github.event.inputs.verbose }}" = "true" ]; then
             export ANSIBLE_VERBOSE="-vvv"
+          else
+            export ANSIBLE_VERBOSE="-v"
           fi
 
-          # Use Docker as provider
+          # Debug: Check Docker container status
+          echo "🔍 Checking Docker container status..."
+          docker ps -a | grep dspace-server || echo "Container not found"
+
+          # Debug: Test SSH connectivity
+          echo "🔍 Testing SSH connectivity to container..."
+          ssh -o StrictHostKeyChecking=no -p 2222 admin@localhost "echo 'SSH connection working'" || echo "SSH connection failed"
+
+          # Debug: Test Ansible connectivity
+          echo "🔍 Testing Ansible connectivity..."
+          cd ansible
+          ansible -i inventory/docker.ini dspace_servers -m ping || echo "Ansible ping failed"
+          cd ..
+
+          # Use Docker as provider (let Makefile handle inventory path)
           export PROVIDER=docker
-          export ANSIBLE_INVENTORY=inventory/docker.ini
+          # Don't override ANSIBLE_INVENTORY, let Makefile handle it
 
           # Run the appropriate test
           TEST_TYPE="${{ github.event.inputs.test_type || 'complete' }}"
