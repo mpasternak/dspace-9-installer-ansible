@@ -6,6 +6,22 @@
 
 This project provides a flexible, provider-agnostic framework for deploying DSpace 9 to various targets. Whether you're using local VMs (Tart on macOS or Vagrant cross-platform) or deploying to physical servers and cloud instances via SSH, this framework handles it all with a consistent interface.
 
+## TL;DR
+
+Quick installation in 3 steps:
+
+```bash
+# 1. Build VM and install complete DSpace stack (backend + frontend + nginx)
+make build-vm install-complete
+
+# 2. Access your DSpace installation
+#    Frontend: http://dspace-server/
+#    Backend:  http://dspace-server/server/api
+
+# 3. When done, clean up the VM
+make destroy-vm
+```
+
 ## Features
 
 - **Multiple Provider Support**: Choose between Tart (macOS), Vagrant (cross-platform), or direct SSH connections
@@ -126,9 +142,15 @@ make destroy-vm
 PROVIDER=vagrant make configure-developer-machine
 PROVIDER=vagrant make install-dspace-all
 
+# Or install complete stack with frontend
+PROVIDER=vagrant make install-complete
+
 # Or set as default in config.mk
 echo "PROVIDER ?= vagrant" > config.mk
-make install-dspace-all
+make build-vm install-complete
+
+# Clean up when done
+PROVIDER=vagrant make destroy-vm
 ```
 
 ### Using SSH (Physical/Cloud Servers)
@@ -138,8 +160,13 @@ make install-dspace-all
 PROVIDER=ssh SSH_HOST=192.168.1.100 make configure-host
 PROVIDER=ssh SSH_HOST=192.168.1.100 make install-dspace-all
 
+# Or install complete stack with frontend
+PROVIDER=ssh SSH_HOST=192.168.1.100 make install-complete
+
 # For cloud instances
 PROVIDER=ssh SSH_HOST=ec2-xx-xx-xx-xx.compute.amazonaws.com SSH_USER=ubuntu make configure-host
+
+# Note: destroy-vm doesn't apply to SSH provider (it won't delete your remote server)
 ```
 
 ## Provider Configuration
@@ -244,8 +271,10 @@ All targets work with any provider (Tart, Vagrant, or SSH). Set provider via `PR
 | `ssh` | SSH into VM/host |
 | **DSpace Installation** | |
 | `install-prerequisites` | Install Java, PostgreSQL, Solr, Tomcat |
-| `install-dspace` | Complete DSpace installation |
-| `install-dspace-all` | Install prerequisites + DSpace |
+| `install-dspace` | Complete DSpace backend installation |
+| `install-dspace-all` | Install prerequisites + DSpace backend |
+| `install-complete` | Install complete stack (backend + frontend + nginx) |
+| `install-frontend` | Install DSpace Angular frontend |
 | `dspace-download` | Download DSpace source only |
 | `dspace-build` | Build with Maven and Ant only |
 | `dspace-install-only` | Install without download/build |
