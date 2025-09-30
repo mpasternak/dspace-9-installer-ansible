@@ -4,6 +4,21 @@
   become: yes
 
   pre_tasks:
+    - name: Check if running in Docker container
+      stat:
+        path: /.dockerenv
+      register: dockerenv_check
+
+    - name: Check for Docker in cgroup (alternative detection)
+      shell: cat /proc/1/cgroup | grep -q docker
+      register: cgroup_docker_check
+      failed_when: false
+      changed_when: false
+
+    - name: Set Docker detection fact
+      set_fact:
+        is_docker: "{{ dockerenv_check.stat.exists or cgroup_docker_check.rc == 0 }}"
+
     - name: Update apt cache
       apt:
         update_cache: yes
@@ -48,8 +63,13 @@
       command: update-locale LANG={{ locale }}
       changed_when: false
 
+  tasks:
+    - name: Setup swap (skip in Docker)
+      include_role:
+        name: swap
+      when: not is_docker
+
   roles:
-    - swap
     - java
     - postgresql
     - nginx
