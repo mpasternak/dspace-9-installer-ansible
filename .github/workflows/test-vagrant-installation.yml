@@ -94,22 +94,32 @@ jobs:
           brew install --cask vagrant
 
           # Install virtualization provider based on architecture
+          PROVIDER_INSTALLED=false
+
           if [[ "$ARCH" == "arm64" ]]; then
             echo "Installing virtualization for Apple Silicon (ARM64)..."
-            # Try to install VMware Fusion (better ARM64 support)
-            # Note: This requires a license in production, but trial works for CI
-            brew install --cask vmware-fusion || {
-              echo "VMware Fusion not available, trying Parallels..."
-              # Parallels is excellent for ARM64 but also requires license
-              brew install --cask parallels || {
-                echo "Falling back to QEMU..."
-                brew install qemu
-                vagrant plugin install vagrant-qemu
-              }
-            }
+            # For ARM64, use QEMU as it's free and works reliably
+            echo "Installing QEMU for ARM64..."
+            if brew install qemu; then
+              vagrant plugin install vagrant-qemu
+              PROVIDER_INSTALLED=true
+              PROVIDER_TYPE="qemu"
+            fi
           else
             echo "Installing VirtualBox for Intel architecture..."
-            brew install --cask virtualbox
+            # For Intel, try VirtualBox first
+            if brew install --cask virtualbox 2>/dev/null; then
+              PROVIDER_INSTALLED=true
+              PROVIDER_TYPE="virtualbox"
+            else
+              echo "VirtualBox installation failed (may require permissions), trying Docker..."
+              # Fallback to Docker if VirtualBox fails
+              if brew install --cask docker 2>/dev/null; then
+                vagrant plugin install vagrant-docker-provider
+                PROVIDER_INSTALLED=true
+                PROVIDER_TYPE="docker"
+              fi
+            fi
           fi
 
           # Install Python and Ansible
@@ -126,25 +136,41 @@ jobs:
           echo "Verifying installations:"
           vagrant --version
 
-          # Check which provider is available
-          if command -v VBoxManage &> /dev/null; then
-            VBoxManage --version
-            echo "Provider: VirtualBox"
-            echo "VAGRANT_DEFAULT_PROVIDER=virtualbox" >> $GITHUB_ENV
-          elif command -v vmrun &> /dev/null; then
-            vmrun -T fusion list
-            echo "Provider: VMware Fusion"
-            echo "VAGRANT_DEFAULT_PROVIDER=vmware_desktop" >> $GITHUB_ENV
-          elif command -v prlctl &> /dev/null; then
-            prlctl --version
-            echo "Provider: Parallels"
-            echo "VAGRANT_DEFAULT_PROVIDER=parallels" >> $GITHUB_ENV
-          elif command -v qemu-system-aarch64 &> /dev/null || command -v qemu-system-x86_64 &> /dev/null; then
-            qemu-system-aarch64 --version || qemu-system-x86_64 --version
-            echo "Provider: QEMU"
-            echo "VAGRANT_DEFAULT_PROVIDER=qemu" >> $GITHUB_ENV
+          # Check which provider is actually available and working
+          if [ "$PROVIDER_INSTALLED" = true ]; then
+            case "$PROVIDER_TYPE" in
+              virtualbox)
+                if VBoxManage --version 2>/dev/null; then
+                  echo "Provider: VirtualBox"
+                  echo "VAGRANT_DEFAULT_PROVIDER=virtualbox" >> $GITHUB_ENV
+                else
+                  echo "⚠️ VirtualBox installed but not working!"
+                  exit 1
+                fi
+                ;;
+              qemu)
+                if command -v qemu-system-aarch64 &> /dev/null || command -v qemu-system-x86_64 &> /dev/null; then
+                  qemu-system-aarch64 --version 2>/dev/null || qemu-system-x86_64 --version
+                  echo "Provider: QEMU"
+                  echo "VAGRANT_DEFAULT_PROVIDER=qemu" >> $GITHUB_ENV
+                else
+                  echo "⚠️ QEMU installed but not working!"
+                  exit 1
+                fi
+                ;;
+              docker)
+                if command -v docker &> /dev/null; then
+                  echo "Provider: Docker"
+                  echo "VAGRANT_DEFAULT_PROVIDER=docker" >> $GITHUB_ENV
+                else
+                  echo "⚠️ Docker installed but not working!"
+                  exit 1
+                fi
+                ;;
+            esac
           else
-            echo "⚠️ No virtualization provider found!"
+            echo "⚠️ No virtualization provider could be installed!"
+            echo "CI environment may not support hardware virtualization."
             exit 1
           fi
 
@@ -160,8 +186,9 @@ jobs:
           echo "================================================"
           echo "Configuring Vagrant for CI testing"
           echo "================================================"
+          echo "Provider: $VAGRANT_DEFAULT_PROVIDER"
 
-          # Create Vagrantfile if it doesn't exist or override with CI-specific one
+          # Create Vagrantfile based on provider
           cat > Vagrantfile << 'EOF'
           # -*- mode: ruby -*-
           # vi: set ft=ruby :
@@ -174,11 +201,25 @@ jobs:
           # ============================================================================
 
           Vagrant.configure("2") do |config|
-            # Use Ubuntu 24.04 LTS
-            config.vm.box = "bento/ubuntu-24.04"
+            # Use appropriate box based on provider
+            provider = ENV['VAGRANT_DEFAULT_PROVIDER'] || 'virtualbox'
+
+            case provider
+            when 'qemu'
+              # QEMU requires special boxes
+              config.vm.box = "perk/ubuntu-2404-arm64"
+            when 'docker'
+              # Docker doesn't use boxes
+              config.vm.box = nil
+            else
+              # VirtualBox and others
+              config.vm.box = "bento/ubuntu-24.04"
+            end
+
             config.vm.hostname = "dspace-server"
 
-            # VM Configuration
+            # Provider-specific configuration
+            # VirtualBox configuration
             config.vm.provider "virtualbox" do |vb|
               vb.name = "dspace-ci-test"
               vb.memory = "6144"  # 6GB RAM for CI testing
@@ -187,8 +228,27 @@ jobs:
               vb.customize ["modifyvm", :id, "--ioapic", "on"]
             end
 
-            # Network configuration
-            config.vm.network "private_network", type: "dhcp"
+            # QEMU configuration for ARM64
+            config.vm.provider "qemu" do |qe|
+              qe.memory = "6144"  # 6GB RAM
+              qe.cpu_count = 2
+              qe.arch = "aarch64"
+              qe.machine = "virt"
+              qe.net_device = "virtio-net-pci"
+            end
+
+            # Docker configuration as fallback
+            config.vm.provider "docker" do |d|
+              d.image = "ubuntu:24.04"
+              d.has_ssh = true
+              d.privileged = true
+              d.create_args = ["--cap-add=SYS_ADMIN", "--security-opt", "apparmor=unconfined"]
+            end
+
+            # Network configuration (skip for Docker)
+            if ENV['VAGRANT_DEFAULT_PROVIDER'] != 'docker'
+              config.vm.network "private_network", type: "dhcp"
+            end
 
             # Create admin user for Ansible
             config.vm.provision "shell", inline: <<-SHELL
@@ -207,8 +267,10 @@ jobs:
               chown -R admin:admin /home/admin/.ssh
 
               # Enable password authentication temporarily for CI
-              sed -i 's/PasswordAuthentication no/PasswordAuthentication yes/' /etc/ssh/sshd_config
-              systemctl restart sshd
+              if [ -f /etc/ssh/sshd_config ]; then
+                sed -i 's/PasswordAuthentication no/PasswordAuthentication yes/' /etc/ssh/sshd_config
+                systemctl restart sshd || service ssh restart || true
+              fi
 
               # Basic system setup
               apt-get update
@@ -217,12 +279,16 @@ jobs:
               echo "✅ VM provisioning complete"
             SHELL
 
-            # Sync the project directory
-            config.vm.synced_folder ".", "/vagrant", type: "virtualbox"
+            # Sync the project directory (provider-specific)
+            if ENV['VAGRANT_DEFAULT_PROVIDER'] == 'virtualbox'
+              config.vm.synced_folder ".", "/vagrant", type: "virtualbox"
+            elsif ENV['VAGRANT_DEFAULT_PROVIDER'] != 'docker'
+              config.vm.synced_folder ".", "/vagrant", type: "rsync"
+            end
           end
           EOF
 
-          echo "✅ Vagrantfile configured for CI testing"
+          echo "✅ Vagrantfile configured for CI testing with provider: $VAGRANT_DEFAULT_PROVIDER"
 
       # ======================================================================
       # Step 5: Start Vagrant VM
@@ -236,17 +302,41 @@ jobs:
           # Use the provider detected in previous step
           echo "Using provider: $VAGRANT_DEFAULT_PROVIDER"
 
+          # Verify provider is set
+          if [ -z "$VAGRANT_DEFAULT_PROVIDER" ]; then
+            echo "❌ Error: No provider set! Check provider detection step."
+            exit 1
+          fi
+
+          # Show available providers for debugging
+          echo "Available Vagrant providers:"
+          vagrant plugin list
+
           # Start the VM with the appropriate provider
-          vagrant up --provider=$VAGRANT_DEFAULT_PROVIDER
+          echo "Starting VM with provider: $VAGRANT_DEFAULT_PROVIDER"
+          if ! vagrant up --provider=$VAGRANT_DEFAULT_PROVIDER 2>&1 | tee vagrant-up.log; then
+            echo "❌ Failed to start VM."
+            echo "Error details from log:"
+            grep -E '(Error|Failed|Cannot|Unable)' vagrant-up.log | tail -n 20
+            exit 1
+          fi
 
           # Wait for VM to be fully ready
+          echo "Waiting for VM to be ready..."
           sleep 10
 
           # Show VM status
+          echo "VM Status:"
           vagrant status
 
           # Test SSH connectivity
-          vagrant ssh -c "echo 'VM is accessible via SSH'"
+          echo "Testing SSH connectivity..."
+          if ! vagrant ssh -c "echo 'VM is accessible via SSH'"; then
+            echo "❌ Failed to connect to VM via SSH"
+            echo "Trying to get more information..."
+            vagrant ssh-config
+            exit 1
+          fi
 
           echo "✅ Vagrant VM started successfully"
 

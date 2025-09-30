@@ -5,6 +5,7 @@
 include config.mk
 
 .PHONY: help info configure-developer-machine build-vm start-vm stop-vm destroy-vm ssh ssh-copy-id vm-status
+.PHONY: hosts-add hosts-remove hosts-check
 .PHONY: update-apt install-prerequisites install-dspace install-dspace-all
 .PHONY: dspace-download dspace-build dspace-install-only dspace-rebuild
 .PHONY: dspace-version dspace-github clean
@@ -117,6 +118,9 @@ ssh-copy-id: ## Copy SSH key to VM/host
 
 vm-status: ## Check VM/host status
 	@$(MAKE) provider-status
+
+# Hosts file management - delegates to provider if supported
+# Currently only implemented for Tart provider
 
 # DSpace Installation Tasks (provider-agnostic)
 update-apt: ## Update apt packages on target system

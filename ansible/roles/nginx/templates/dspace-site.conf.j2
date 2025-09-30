@@ -1,12 +1,14 @@
 # DSpace Nginx Site Configuration
 # Reverse proxy to Tomcat on port {{ tomcat_port | default(8080) }}
 
-{% if ssl_enabled | default(false) or use_snakeoil | default(true) %}
-# HTTP -> HTTPS redirect
+# HTTP server
 server {
     listen 80;
     listen [::]:80;
-    server_name {{ domain_name }};
+    server_name {{ domain_name | default('_') }};
+
+{% if (ssl_enabled | default(false) or use_snakeoil | default(true)) and nginx_redirect_to_https | default(false) %}
+    # HTTP -> HTTPS redirect is enabled
 
     # Allow certbot challenges
     location /.well-known/acme-challenge/ {
@@ -19,39 +21,8 @@ server {
     }
 }
 
-# HTTPS server
-server {
-    listen 443 ssl http2;
-    listen [::]:443 ssl http2;
-    server_name {{ domain_name }};
-
-    # SSL certificates
-{% if ssl_enabled | default(false) %}
-    # Let's Encrypt certificates
-    ssl_certificate /etc/letsencrypt/live/{{ domain_name }}/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/{{ domain_name }}/privkey.pem;
 {% else %}
-    # Snakeoil self-signed certificates
-    ssl_certificate {{ snakeoil_cert_path }};
-    ssl_certificate_key {{ snakeoil_key_path }};
-{% endif %}
-
-    # SSL configuration
-    ssl_protocols TLSv1.2 TLSv1.3;
-    ssl_ciphers HIGH:!aNULL:!MD5;
-    ssl_prefer_server_ciphers off;
-
-    # HSTS (optional but recommended)
-    add_header Strict-Transport-Security "max-age=63072000" always;
-
-{% else %}
-# HTTP server (no SSL)
-server {
-    listen 80;
-    listen [::]:80;
-    server_name {{ domain_name | default('_') }};
-
-{% endif %}
+    # HTTP server with full configuration (no redirect to HTTPS)
 
     # Logging
     access_log /var/log/nginx/dspace-access.log;
@@ -142,10 +113,131 @@ server {
         add_header Content-Type text/plain;
     }
 
+    # Certbot/ACME challenge location (always accessible via HTTP)
+    location /.well-known/acme-challenge/ {
+        root /var/www/html;
+    }
+}
+{% endif %}
+
 {% if ssl_enabled | default(false) or use_snakeoil | default(true) %}
+# HTTPS server
+server {
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
+    server_name {{ domain_name }};
+
+    # SSL certificates
+{% if ssl_enabled | default(false) %}
+    # Let's Encrypt certificates
+    ssl_certificate /etc/letsencrypt/live/{{ domain_name }}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/{{ domain_name }}/privkey.pem;
+{% else %}
+    # Snakeoil self-signed certificates
+    ssl_certificate {{ snakeoil_cert_path }};
+    ssl_certificate_key {{ snakeoil_key_path }};
+{% endif %}
+
+    # SSL configuration
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers HIGH:!aNULL:!MD5;
+    ssl_prefer_server_ciphers off;
+
+    # HSTS (optional but recommended)
+    add_header Strict-Transport-Security "max-age=63072000" always;
+
+    # Logging
+    access_log /var/log/nginx/dspace-access.log;
+    error_log /var/log/nginx/dspace-error.log;
+
+    # Security headers
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-XSS-Protection "1; mode=block" always;
+
+    # Client body size for file uploads
+    client_max_body_size {{ nginx_client_max_body_size | default('512M') }};
+    client_body_buffer_size 128k;
+
+    # Proxy timeouts
+    proxy_connect_timeout 600;
+    proxy_send_timeout 600;
+    proxy_read_timeout 600;
+    send_timeout 600;
+
+    # Main location - proxy to DSpace Angular UI
+    location / {
+        proxy_pass http://localhost:{{ dspace_frontend_port | default(4000) }};
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header X-Forwarded-Port $server_port;
+
+        # WebSocket support for Angular UI
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+
+        # Disable buffering for better streaming
+        proxy_buffering off;
+        proxy_request_buffering off;
+
+        # Increase buffer sizes
+        proxy_buffer_size 128k;
+        proxy_buffers 4 256k;
+        proxy_busy_buffers_size 256k;
+        proxy_temp_file_write_size 256k;
+
+        # Handle Angular routing (SPA)
+        proxy_intercept_errors on;
+        error_page 404 = @angular;
+    }
+
+    # Fallback for Angular routes
+    location @angular {
+        proxy_pass http://localhost:{{ dspace_frontend_port | default(4000) }};
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # Specific location for /server (DSpace REST API)
+    location /server {
+        proxy_pass http://localhost:{{ tomcat_port | default(8080) }}/server;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header X-Forwarded-Port $server_port;
+
+        # CORS headers for REST API (if needed)
+        add_header 'Access-Control-Allow-Origin' '*' always;
+        add_header 'Access-Control-Allow-Methods' 'GET, POST, PUT, DELETE, OPTIONS' always;
+        add_header 'Access-Control-Allow-Headers' 'DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization' always;
+        add_header 'Access-Control-Expose-Headers' 'Content-Length,Content-Range' always;
+
+        if ($request_method = 'OPTIONS') {
+            add_header 'Access-Control-Max-Age' 1728000;
+            add_header 'Content-Type' 'text/plain; charset=utf-8';
+            add_header 'Content-Length' 0;
+            return 204;
+        }
+    }
+
+    # Health check endpoint
+    location /nginx-health {
+        access_log off;
+        return 200 "healthy\n";
+        add_header Content-Type text/plain;
+    }
+
     # Certbot/ACME challenge location
     location /.well-known/acme-challenge/ {
         root /var/www/html;
     }
-{% endif %}
 }
+{% endif %}

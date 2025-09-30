@@ -8,7 +8,7 @@
     owner: "{{ frontend_user }}"
     group: "{{ frontend_group }}"
     mode: '0644'
-  notify: restart dspace-frontend
+  notify: restart dspaceui
 
 - name: Create PM2 ecosystem configuration
   template:
@@ -17,7 +17,7 @@
     owner: "{{ frontend_user }}"
     group: "{{ frontend_group }}"
     mode: '0644'
-  notify: restart dspace-frontend
+  notify: restart dspaceui
 
 - name: Create symlink to frontend directory
   file:

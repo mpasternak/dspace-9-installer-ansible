@@ -24,8 +24,8 @@
 # Configure PM2 systemd service
 - name: Create PM2 systemd service file
   template:
-    src: dspace-frontend.service.j2
-    dest: /etc/systemd/system/dspace-frontend.service
+    src: dspaceui.service.j2
+    dest: /etc/systemd/system/dspaceui.service
     owner: root
     group: root
     mode: '0644'
@@ -38,7 +38,7 @@
 
 - name: Enable and start PM2 service
   systemd:
-    name: dspace-frontend
+    name: dspaceui
     enabled: yes
     state: started
   become: yes

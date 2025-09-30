@@ -88,6 +88,20 @@ File Structure:
 
 ## Quick Start
 
+### Recommended Workflow
+
+```bash
+# 1. Build VM and install complete DSpace stack (backend + frontend + nginx)
+make build-vm install-complete
+
+# 2. Access your DSpace installation
+#    Frontend: http://dspace-server/
+#    Backend:  http://dspace-server/server/api
+
+# 3. When done, clean up the VM
+make destroy-vm
+```
+
 ### Using Tart (macOS Native Virtualization)
 
 ```bash
@@ -95,8 +109,14 @@ File Structure:
 make configure-developer-machine
 make install-dspace-all
 
+# Or install complete stack with frontend
+make install-complete
+
 # Access the VM
 make ssh
+
+# Clean up when done
+make destroy-vm
 ```
 
 ### Using Vagrant (Cross-platform)

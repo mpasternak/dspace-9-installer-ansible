@@ -5,8 +5,13 @@
 TART_IMAGE ?= ghcr.io/cirruslabs/ubuntu:latest
 VM_CPUS ?= $(shell echo "$$(sysctl -n hw.ncpu) / 2" | bc)
 
+# Get domain_name from Ansible configuration
+DOMAIN_NAME := $(shell grep '^domain_name:' ansible/group_vars/all.yml | awk '{print $$2}' | tr -d '"')
+HOSTS_COMMENT := \# Managed by dspace-9-installer
+
 # Provider interface implementation
 .PHONY: provider-init provider-start provider-stop provider-destroy provider-ssh provider-get-ip provider-status provider-copy-ssh-key
+.PHONY: hosts-add hosts-remove hosts-check
 
 provider-init: ## Initialize Tart VM
 	@echo ""
@@ -40,6 +45,10 @@ provider-init: ## Initialize Tart VM
 	@echo "📍 IP Address: $$(tart ip $(VM_NAME))"
 	@# Setup SSH key authentication
 	@$(MAKE) provider-copy-ssh-key
+	@# Add to /etc/hosts
+	@echo ""
+	@echo "🔧 Configuring /etc/hosts..."
+	@$(MAKE) hosts-add
 
 provider-start: ## Start the Tart VM
 	@echo "🚀 Starting VM '$(VM_NAME)'..."
@@ -84,6 +93,8 @@ provider-destroy: ## Destroy the Tart VM
 		read -p "Are you sure you want to destroy the VM? (yes/no): " confirm; \
 		if [ "$$confirm" = "yes" ] || [ "$$confirm" = "y" ]; then \
 			VM_IP=$$(tart ip $(VM_NAME) 2>/dev/null || echo ""); \
+			echo "🔧 Removing /etc/hosts entry..."; \
+			$(MAKE) hosts-remove; \
 			if [ -n "$$VM_IP" ]; then \
 				echo "⏹️  Stopping VM..."; \
 				tart stop $(VM_NAME); \
@@ -158,4 +169,63 @@ provider-install-deps: ## Install Tart dependencies on macOS
 		brew install cirruslabs/cli/tart; \
 	else \
 		echo "✅ Tart already installed"; \
+	fi
+
+# Hosts file management targets
+hosts-add: ## Add VM IP to /etc/hosts
+	@if [ -z "$(DOMAIN_NAME)" ]; then \
+		echo "❌ domain_name not found in ansible/group_vars/all.yml"; \
+		exit 1; \
+	fi
+	@echo "🔍 Getting VM IP address..."
+	@VM_IP=$$(tart ip $(VM_NAME) 2>/dev/null); \
+	if [ -z "$$VM_IP" ]; then \
+		echo "❌ VM is not running or IP not available"; \
+		exit 1; \
+	fi; \
+	echo "📝 Adding/updating hosts entry: $$VM_IP $(DOMAIN_NAME)"; \
+	if grep -q "$(DOMAIN_NAME)" /etc/hosts; then \
+		echo "⚠️  Entry for $(DOMAIN_NAME) already exists in /etc/hosts"; \
+		echo "🔄 Updating existing entry..."; \
+		sudo sed -i.bak "/$(DOMAIN_NAME)/d" /etc/hosts; \
+	fi; \
+	echo "$$VM_IP $(DOMAIN_NAME) # Managed by dspace-9-installer" | sudo tee -a /etc/hosts > /dev/null; \
+	echo "✅ Hosts file updated successfully"; \
+	echo "📌 You can now access DSpace at: http://$(DOMAIN_NAME)"
+
+hosts-remove: ## Remove VM IP from /etc/hosts
+	@if [ -z "$(DOMAIN_NAME)" ]; then \
+		echo "❌ domain_name not found in ansible/group_vars/all.yml"; \
+		exit 1; \
+	fi
+	@echo "🗑️  Removing hosts entry for $(DOMAIN_NAME)..."
+	@if grep -q "$(DOMAIN_NAME)" /etc/hosts; then \
+		sudo sed -i.bak "/$(DOMAIN_NAME).*Managed by dspace-9-installer/d" /etc/hosts; \
+		echo "✅ Hosts entry removed"; \
+	else \
+		echo "ℹ️  No entry found for $(DOMAIN_NAME)"; \
+	fi
+
+hosts-check: ## Check current hosts file entry
+	@if [ -z "$(DOMAIN_NAME)" ]; then \
+		echo "❌ domain_name not found in ansible/group_vars/all.yml"; \
+		exit 1; \
+	fi
+	@echo "🔍 Checking /etc/hosts for $(DOMAIN_NAME)..."
+	@if grep -q "$(DOMAIN_NAME)" /etc/hosts; then \
+		echo "✅ Found entry:"; \
+		grep "$(DOMAIN_NAME)" /etc/hosts; \
+		VM_IP=$$(tart ip $(VM_NAME) 2>/dev/null); \
+		if [ -n "$$VM_IP" ]; then \
+			echo "📍 Current VM IP: $$VM_IP"; \
+			if grep -q "$$VM_IP.*$(DOMAIN_NAME)" /etc/hosts; then \
+				echo "✅ Hosts entry is up to date"; \
+			else \
+				echo "⚠️  Hosts entry IP doesn't match current VM IP"; \
+				echo "💡 Run 'make hosts-add' to update"; \
+			fi; \
+		fi; \
+	else \
+		echo "❌ No entry found for $(DOMAIN_NAME)"; \
+		echo "💡 Run 'make hosts-add' to add it"; \
 	fi

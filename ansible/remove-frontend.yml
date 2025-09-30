@@ -35,22 +35,22 @@
       ignore_errors: yes
 
     # Stop and remove systemd service
-    - name: Check if dspace-frontend service exists
+    - name: Check if dspaceui service exists
       stat:
-        path: /etc/systemd/system/dspace-frontend.service
+        path: /etc/systemd/system/dspaceui.service
       register: service_file
 
-    - name: Stop dspace-frontend service
+    - name: Stop dspaceui service
       systemd:
-        name: dspace-frontend
+        name: dspaceui
         state: stopped
         enabled: no
       when: service_file.stat.exists
       ignore_errors: yes
 
-    - name: Remove dspace-frontend service file
+    - name: Remove dspaceui service file
       file:
-        path: /etc/systemd/system/dspace-frontend.service
+        path: /etc/systemd/system/dspaceui.service
         state: absent
       when: service_file.stat.exists
 
@@ -148,7 +148,7 @@
           - ""
           - "The following have been removed:"
           - "  ✓ PM2 processes and configuration"
-          - "  ✓ Systemd service (dspace-frontend)"
+          - "  ✓ Systemd service (dspaceui)"
           - "  ✓ Frontend source directory"
           - "  ✓ Frontend user ({{ frontend_user }})"
           - "  ✓ Frontend group ({{ frontend_group }})"
