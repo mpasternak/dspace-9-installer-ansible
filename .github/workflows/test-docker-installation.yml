@@ -114,6 +114,7 @@ jobs:
               xz-utils \
               locales \
               tzdata \
+              lsof \
               && rm -rf /tmp/* /var/tmp/*
 
           # Configure locale
