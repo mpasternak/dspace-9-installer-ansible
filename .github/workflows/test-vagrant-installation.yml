@@ -83,11 +83,34 @@ jobs:
           echo "Installing Vagrant and dependencies for CI testing"
           echo "================================================"
 
+          # Detect architecture
+          ARCH=$(uname -m)
+          echo "System architecture: $ARCH"
+
           # Install or update Homebrew
           /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)" || brew update
 
-          # Install Vagrant and VirtualBox
-          brew install --cask vagrant virtualbox
+          # Install Vagrant
+          brew install --cask vagrant
+
+          # Install virtualization provider based on architecture
+          if [[ "$ARCH" == "arm64" ]]; then
+            echo "Installing virtualization for Apple Silicon (ARM64)..."
+            # Try to install VMware Fusion (better ARM64 support)
+            # Note: This requires a license in production, but trial works for CI
+            brew install --cask vmware-fusion || {
+              echo "VMware Fusion not available, trying Parallels..."
+              # Parallels is excellent for ARM64 but also requires license
+              brew install --cask parallels || {
+                echo "Falling back to QEMU..."
+                brew install qemu
+                vagrant plugin install vagrant-qemu
+              }
+            }
+          else
+            echo "Installing VirtualBox for Intel architecture..."
+            brew install --cask virtualbox
+          fi
 
           # Install Python and Ansible
           brew install python@3.11
@@ -102,7 +125,29 @@ jobs:
           echo ""
           echo "Verifying installations:"
           vagrant --version
-          VBoxManage --version
+
+          # Check which provider is available
+          if command -v VBoxManage &> /dev/null; then
+            VBoxManage --version
+            echo "Provider: VirtualBox"
+            echo "VAGRANT_DEFAULT_PROVIDER=virtualbox" >> $GITHUB_ENV
+          elif command -v vmrun &> /dev/null; then
+            vmrun -T fusion list
+            echo "Provider: VMware Fusion"
+            echo "VAGRANT_DEFAULT_PROVIDER=vmware_desktop" >> $GITHUB_ENV
+          elif command -v prlctl &> /dev/null; then
+            prlctl --version
+            echo "Provider: Parallels"
+            echo "VAGRANT_DEFAULT_PROVIDER=parallels" >> $GITHUB_ENV
+          elif command -v qemu-system-aarch64 &> /dev/null || command -v qemu-system-x86_64 &> /dev/null; then
+            qemu-system-aarch64 --version || qemu-system-x86_64 --version
+            echo "Provider: QEMU"
+            echo "VAGRANT_DEFAULT_PROVIDER=qemu" >> $GITHUB_ENV
+          else
+            echo "⚠️ No virtualization provider found!"
+            exit 1
+          fi
+
           ansible --version
 
           echo "✅ Dependencies installed successfully"
@@ -188,11 +233,11 @@ jobs:
           echo "Starting Vagrant VM for testing"
           echo "================================================"
 
-          # Set provider explicitly
-          export VAGRANT_DEFAULT_PROVIDER=virtualbox
+          # Use the provider detected in previous step
+          echo "Using provider: $VAGRANT_DEFAULT_PROVIDER"
 
-          # Start the VM
-          vagrant up --provider=virtualbox
+          # Start the VM with the appropriate provider
+          vagrant up --provider=$VAGRANT_DEFAULT_PROVIDER
 
           # Wait for VM to be fully ready
           sleep 10

@@ -21,21 +21,7 @@
   register: build_result
   changed_when: true
 
-# Configure PM2 service
-- name: Start DSpace frontend with PM2
-  command: pm2 start dspace-ui.json
-  args:
-    chdir: "{{ dspace_frontend_source_dir }}"
-  become_user: "{{ frontend_user }}"
-  register: pm2_start
-  changed_when: "'online' in pm2_start.stdout"
-  ignore_errors: yes
-
-- name: Save PM2 process list
-  command: pm2 save
-  become_user: "{{ frontend_user }}"
-  changed_when: true
-
+# Configure PM2 systemd service
 - name: Create PM2 systemd service file
   template:
     src: dspace-frontend.service.j2

@@ -31,23 +31,79 @@ echo ""
 # Check prerequisites
 echo -e "${YELLOW}Checking prerequisites...${RESET}"
 
+# Detect architecture
+ARCH=$(uname -m)
+echo -e "${BLUE}System architecture: $ARCH${RESET}"
+
 if ! command -v vagrant &> /dev/null; then
     echo -e "${RED}❌ Vagrant is not installed${RESET}"
     echo "Please install Vagrant: https://www.vagrantup.com/downloads"
     exit 1
 fi
 
-if ! command -v VBoxManage &> /dev/null; then
-    echo -e "${YELLOW}⚠️  VirtualBox not found, checking for other providers...${RESET}"
-    if ! command -v vmrun &> /dev/null; then
+# Check for virtualization provider based on architecture
+PROVIDER=""
+if [[ "$ARCH" == "arm64" ]] || [[ "$ARCH" == "aarch64" ]]; then
+    echo -e "${YELLOW}Checking for ARM64-compatible virtualization providers...${RESET}"
+
+    if command -v vmrun &> /dev/null; then
+        echo -e "${GREEN}✅ VMware Fusion found${RESET}"
+        PROVIDER="vmware_desktop"
+    elif command -v prlctl &> /dev/null; then
+        echo -e "${GREEN}✅ Parallels found${RESET}"
+        PROVIDER="parallels"
+    elif command -v qemu-system-aarch64 &> /dev/null; then
+        echo -e "${GREEN}✅ QEMU found${RESET}"
+        PROVIDER="qemu"
+        # Check for vagrant-qemu plugin
+        if ! vagrant plugin list | grep -q vagrant-qemu; then
+            echo -e "${YELLOW}Installing vagrant-qemu plugin...${RESET}"
+            vagrant plugin install vagrant-qemu
+        fi
+    elif command -v VBoxManage &> /dev/null; then
+        echo -e "${YELLOW}⚠️  VirtualBox found but may have limited ARM64 support${RESET}"
+        PROVIDER="virtualbox"
+    else
+        echo -e "${RED}❌ No ARM64-compatible virtualization provider found${RESET}"
+        echo "For Apple Silicon Macs, please install one of:"
+        echo "  - VMware Fusion: https://www.vmware.com/products/fusion.html"
+        echo "  - Parallels Desktop: https://www.parallels.com/"
+        echo "  - QEMU: brew install qemu"
+        exit 1
+    fi
+else
+    echo -e "${YELLOW}Checking for x86_64 virtualization providers...${RESET}"
+
+    if command -v VBoxManage &> /dev/null; then
+        echo -e "${GREEN}✅ VirtualBox found${RESET}"
+        PROVIDER="virtualbox"
+    elif command -v vmrun &> /dev/null; then
+        echo -e "${GREEN}✅ VMware found${RESET}"
+        PROVIDER="vmware_desktop"
+    elif command -v qemu-system-x86_64 &> /dev/null; then
+        echo -e "${GREEN}✅ QEMU found${RESET}"
+        PROVIDER="qemu"
+        # Check for vagrant-qemu plugin
+        if ! vagrant plugin list | grep -q vagrant-qemu; then
+            echo -e "${YELLOW}Installing vagrant-qemu plugin...${RESET}"
+            vagrant plugin install vagrant-qemu
+        fi
+    else
         echo -e "${RED}❌ No virtualization provider found${RESET}"
-        echo "Please install VirtualBox or VMware"
+        echo "Please install one of:"
+        echo "  - VirtualBox: https://www.virtualbox.org/"
+        echo "  - VMware: https://www.vmware.com/"
+        echo "  - QEMU: brew install qemu (macOS) or apt install qemu (Linux)"
         exit 1
     fi
 fi
 
 echo -e "${GREEN}✅ Prerequisites satisfied${RESET}"
+echo -e "${BLUE}Using provider: $PROVIDER${RESET}"
 echo ""
+
+# Export provider for Vagrant
+export VAGRANT_DEFAULT_PROVIDER=$PROVIDER
 
 # Setup Vagrant environment
 echo -e "${YELLOW}Setting up Vagrant environment...${RESET}"
@@ -69,15 +125,15 @@ fi
 
 # Start or provision VM
 echo ""
-echo -e "${YELLOW}Starting Vagrant VM...${RESET}"
+echo -e "${YELLOW}Starting Vagrant VM with $PROVIDER provider...${RESET}"
 
 if vagrant status --machine-readable | grep -q "state,running"; then
     echo "VM is already running"
 else
-    vagrant up
+    vagrant up --provider=$PROVIDER
 fi
 
-echo -e "${GREEN}✅ VM is running${RESET}"
+echo -e "${GREEN}✅ VM is running with $PROVIDER${RESET}"
 echo ""
 
 # Configure environment

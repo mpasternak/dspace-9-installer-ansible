@@ -8,10 +8,25 @@ This directory contains GitHub Actions workflows that use **Vagrant** to create 
 
 The CI pipeline:
 1. **Creates a real VM** using Vagrant (not a container)
-2. **Provisions Ubuntu 24.04 LTS** in the VM
-3. **Runs the complete installation** using `make update-apt install-complete`
-4. **Validates** that everything installed correctly
-5. **Collects logs** if anything fails
+2. **Automatically detects architecture** (x86_64 or ARM64/Apple Silicon)
+3. **Provisions Ubuntu 24.04 LTS** in the VM (ARM64 or x86_64 version)
+4. **Runs the complete installation** using `make update-apt install-complete`
+5. **Validates** that everything installed correctly
+6. **Collects logs** if anything fails
+
+### Architecture Support
+
+The CI setup now supports both architectures:
+
+| Architecture | Supported Providers | Recommended |
+|-------------|-------------------|------------|
+| **x86_64 (Intel)** | VirtualBox, VMware, QEMU | VirtualBox |
+| **ARM64 (Apple Silicon)** | VMware Fusion, Parallels, QEMU | VMware Fusion or Parallels |
+
+The system automatically:
+- Detects your CPU architecture
+- Selects the appropriate Ubuntu box (arm64 or x86_64)
+- Installs and configures the best available virtualization provider
 
 ## Key Differences from Container-based CI
 
