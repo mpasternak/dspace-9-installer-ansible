@@ -18,15 +18,22 @@
           - wget
           - gnupg
           - lsb-release
-          - vim
-          - htop
           - net-tools
           - unzip
           - bzip2
           - xz-utils
+        state: present
+
+    - name: Install optional interactive packages (skip in CI/Docker)
+      apt:
+        name:
+          - vim
+          - htop
           - emacs-nox
           - links
         state: present
+      when: lookup('env', 'CI') != 'true'
+      ignore_errors: yes
 
     - name: Set timezone
       timezone:
