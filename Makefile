@@ -161,6 +161,17 @@ install-dspace: ## Install DSpace backend application (all steps)
 	@echo ""
 	@echo "✅ DSpace installation complete!"
 
+install-handles-server: ## (Optional) Install handles server for DSpace
+	@echo ""
+	@echo "╔══════════════════════════════════════════════════════════╗"
+	@echo "║        Installing Handles Server (Optional)              ║"
+	@echo "╚══════════════════════════════════════════════════════════╝"
+	@echo ""
+	@echo "🔗 Installing handles server for DSpace..."
+	@cd $(ANSIBLE_PLAYBOOK_DIR) && ansible-playbook $(ANSIBLE_VERBOSE) -i $(ANSIBLE_INVENTORY) install-handles-server.yml
+	@echo ""
+	@echo "✅ Handles server installation complete!"
+
 dspace-download: ## Download DSpace source code only
 	@echo ""
 	@echo "╔══════════════════════════════════════════════════════════╗"

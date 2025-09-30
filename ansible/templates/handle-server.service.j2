@@ -1,0 +1,30 @@
+[Unit]
+Description=DSpace Handle Server Service
+After=network.target postgresql.service tomcat.service
+Wants=postgresql.service tomcat.service
+
+[Service]
+Type=oneshot
+ExecStart={{ handle_server_script_path }}
+User={{ handle_server_user }}
+Group={{ handle_server_group }}
+RemainAfterExit=yes
+
+# Kill the main process
+ExecStop=/bin/kill $MAINPID
+
+# Restart policy
+Restart=no
+
+# Working directory
+WorkingDirectory={{ dspace_install_dir }}
+
+# Environment variables (if needed)
+Environment="DSPACE_HOME={{ dspace_install_dir }}"
+
+# Security settings
+PrivateTmp=yes
+NoNewPrivileges=yes
+
+[Install]
+WantedBy=multi-user.target

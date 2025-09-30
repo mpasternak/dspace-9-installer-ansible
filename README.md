@@ -238,6 +238,9 @@ make dspace-github BRANCH=main
 
 # Rebuild existing installation (skip download)
 make dspace-rebuild
+
+# (Optional) Install handles server after DSpace installation
+make install-handles-server
 ```
 
 ### System Maintenance
@@ -272,6 +275,7 @@ All targets work with any provider (Tart, Vagrant, or SSH). Set provider via `PR
 | **DSpace Installation** | |
 | `install-prerequisites` | Install Java, PostgreSQL, Solr, Tomcat |
 | `install-dspace` | Complete DSpace backend installation |
+| `install-handles-server` | (Optional) Install handles server for DSpace |
 | `install-dspace-all` | Install prerequisites + DSpace backend |
 | `install-complete` | Install complete stack (backend + frontend + nginx) |
 | `install-frontend` | Install DSpace Angular frontend |
@@ -320,6 +324,7 @@ All targets work with any provider (Tart, Vagrant, or SSH). Set provider via `PR
 - **Search engine**: Apache Solr 9.9.0
 - **Application server**: Apache Tomcat 10.1.33
 - **Java**: OpenJDK 17
+- **Handles server**: Optional, runs as systemd service (install with `make install-handles-server`)
 
 ## Project Structure
 ```
@@ -479,6 +484,13 @@ Modify VM settings in the Makefile:
 - RAM allocation
 - CPU cores
 - Disk size
+
+## Documentation
+
+Additional guides are available in the `docs/` directory:
+
+- [Self-Submission Guide (English)](docs/self-submission-guide.rst) - Comprehensive guide for configuring and using self-submission in DSpace 9
+- [Self-Submission Guide (Polski)](docs/self-submission-guide-pl.rst) - Przewodnik konfiguracji i używania samodzielnego przesyłania w DSpace 9
 
 ## Contributing
 

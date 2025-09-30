@@ -1,0 +1,90 @@
+---
+- name: Install Optional Handles Server for DSpace
+  hosts: dspace_servers
+  become: yes
+
+  vars:
+    handle_server_service_name: "handle-server"
+    handle_server_script_path: "{{ dspace_install_dir }}/bin/start-handle-server"
+    handle_server_user: "{{ dspace_user }}"
+    handle_server_group: "{{ dspace_group }}"
+    handle_service_file: "/etc/systemd/system/{{ handle_server_service_name }}.service"
+
+  tasks:
+    - name: Check if DSpace is installed
+      stat:
+        path: "{{ dspace_install_dir }}"
+      register: dspace_installed
+      failed_when: not dspace_installed.stat.exists
+
+    - name: Check if handle server script exists
+      stat:
+        path: "{{ handle_server_script_path }}"
+      register: handle_script
+
+    - name: Display warning if handle script not found
+      debug:
+        msg:
+          - "WARNING: Handle server script not found at {{ handle_server_script_path }}"
+          - "This might be normal if your DSpace installation does not include the handle server"
+          - "or if it's located at a different path."
+      when: not handle_script.stat.exists
+
+    - name: Create handle server systemd service
+      template:
+        src: handle-server.service.j2
+        dest: "{{ handle_service_file }}"
+        owner: root
+        group: root
+        mode: '0644'
+      when: handle_script.stat.exists
+
+    - name: Reload systemd daemon
+      systemd:
+        daemon_reload: yes
+      when: handle_script.stat.exists
+
+    - name: Enable handle server service
+      systemd:
+        name: "{{ handle_server_service_name }}"
+        enabled: yes
+      when: handle_script.stat.exists
+
+    - name: Start handle server service
+      systemd:
+        name: "{{ handle_server_service_name }}"
+        state: started
+      when: handle_script.stat.exists
+      register: handle_service_started
+      ignore_errors: yes
+
+    - name: Check handle server status
+      systemd:
+        name: "{{ handle_server_service_name }}"
+        state: status
+      register: handle_status
+      when: handle_script.stat.exists
+      ignore_errors: yes
+
+    - name: Display installation complete message
+      debug:
+        msg:
+          - "================================================"
+          - " Handles Server Installation {{ 'Complete' if handle_script.stat.exists else 'Skipped' }}!"
+          - "================================================"
+          - ""
+          - "{{ 'Service Status:' if handle_script.stat.exists else 'Note:' }}"
+          - "{{ '  Handle Server: ' + ('Running' if handle_service_started.changed else 'Failed to start (check logs)') if handle_script.stat.exists else '  Handle server script not found. This is normal if your DSpace' }}"
+          - "{{ '' if handle_script.stat.exists else '  installation doesn\'t include the handle server component.' }}"
+          - ""
+          - "{{ 'Service Configuration:' if handle_script.stat.exists else '' }}"
+          - "{{ '  Service Name: ' + handle_server_service_name if handle_script.stat.exists else '' }}"
+          - "{{ '  Service File: ' + handle_service_file if handle_script.stat.exists else '' }}"
+          - "{{ '  Running As: ' + handle_server_user if handle_script.stat.exists else '' }}"
+          - ""
+          - "{{ 'Useful Commands:' if handle_script.stat.exists else 'To manually set up handle server:' }}"
+          - "{{ '  View logs: sudo journalctl -u ' + handle_server_service_name + ' -f' if handle_script.stat.exists else '  1. Ensure handle server is included in your DSpace build' }}"
+          - "{{ '  Restart service: sudo systemctl restart ' + handle_server_service_name if handle_script.stat.exists else '  2. Check for the start-handle-server script in your DSpace installation' }}"
+          - "{{ '  Stop service: sudo systemctl stop ' + handle_server_service_name if handle_script.stat.exists else '  3. Configure handle.cfg in your DSpace configuration' }}"
+          - "{{ '  Service status: sudo systemctl status ' + handle_server_service_name if handle_script.stat.exists else '  4. Re-run this playbook after ensuring the script exists' }}"
+          - "================================================"
