@@ -1,4 +1,19 @@
 ---
+- name: Check if running in Docker container
+  stat:
+    path: /.dockerenv
+  register: dockerenv_check
+
+- name: Check for Docker in cgroup (alternative detection)
+  shell: cat /proc/1/cgroup | grep -q docker
+  register: cgroup_docker_check
+  failed_when: false
+  changed_when: false
+
+- name: Set Docker detection fact
+  set_fact:
+    is_docker: "{{ dockerenv_check.stat.exists or cgroup_docker_check.rc == 0 }}"
+
 - name: Database initialization sequence
   block:
     - name: Get database info
@@ -134,6 +149,7 @@
     - name: "DSpace cleanup"
       job: "{{ dspace_install_dir }}/bin/dspace cleanup"
       hour: "4"
+  when: not is_docker
 
 - name: Display DSpace installation info
   debug:
