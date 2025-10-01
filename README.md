@@ -1,5 +1,7 @@
 # DSpace 9 Installer
 
+[![Test DSpace Installation (Docker)](https://github.com/mpasternak/dspace-9-installer-ansible/actions/workflows/test-docker-installation.yml/badge.svg)](https://github.com/mpasternak/dspace-9-installer-ansible/actions/workflows/test-docker-installation.yml)
+
 > Provider-agnostic automation framework for installing DSpace 9 with support for Tart VMs, Vagrant, and direct SSH hosts
 
 ## Overview
