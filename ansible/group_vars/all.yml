@@ -44,7 +44,7 @@ maven_version: "3.8.8"
 ant_version: "1.10.14"
 
 # Solr configuration
-solr_version: "9.9.0"
+solr_version: "9.10.0"
 solr_port: 8983
 solr_home: "/opt/solr"
 solr_user: "solr"
@@ -109,7 +109,7 @@ ant_opts: "-Xmx1024M -Xms512M"
 
 # System settings
 timezone: "UTC"
-locale: "pl_PL.UTF-8"
+locale: "ar_LY.UTF-8"
 
 # Nginx configuration
 nginx_user: "www-data"
@@ -118,7 +118,7 @@ nginx_client_max_body_size: "512M"
 nginx_redirect_to_https: false  # Set to true to redirect HTTP to HTTPS (when SSL is enabled)
 
 # SSL/Domain configuration
-domain_name: "dspace-server.localnet"  # IMPORTANT: Change to your actual domain
+domain_name: ansible_hostname  # IMPORTANT: Change to your actual domain
 ssl_enabled: false  # Set to true when you have a valid domain
 certbot_email: "admin@dspace-server.localnet"  # Your email for Let's Encrypt notifications
 certbot_staging: false  # Set to true for testing (avoids rate limits)

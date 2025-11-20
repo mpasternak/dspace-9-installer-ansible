@@ -1,6 +1,6 @@
 ---
 - name: Install DSpace Backend
-  hosts: dspace_servers
+  hosts: all
   become: yes
 
   pre_tasks:

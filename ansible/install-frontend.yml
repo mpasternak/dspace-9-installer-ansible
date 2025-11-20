@@ -1,6 +1,6 @@
 ---
 - name: Install DSpace Frontend (Angular UI) - Complete Installation
-  hosts: dspace_servers
+  hosts: all
   become: yes
 
   pre_tasks:
