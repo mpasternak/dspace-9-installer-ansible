@@ -30,10 +30,10 @@ theme:
         icon: material/weather-sunny
         name: Switch to light mode
   features:
-    - navigation.tabs
     - navigation.top
     - navigation.tracking
     - navigation.instant
+    - toc.integrate
     - search.suggest
     - search.highlight
     - content.code.copy
@@ -42,6 +42,7 @@ theme:
 markdown_extensions:
   - admonition
   - attr_list
+  - md_in_html
   - tables
   - pymdownx.details
   - pymdownx.superfences
