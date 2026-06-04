@@ -62,8 +62,8 @@ make install-frontend-build
 
 ```bash
 # A specific released version
-make dspace-version VERSION=9.1
-make frontend-version VERSION=9.1
+make dspace-version VERSION=9.3
+make frontend-version VERSION=9.3
 
 # A GitHub branch
 make dspace-github BRANCH=main

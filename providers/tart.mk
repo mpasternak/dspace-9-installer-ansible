@@ -7,7 +7,7 @@ VM_CPUS ?= $(shell echo "$$(sysctl -n hw.ncpu) / 2" | bc)
 
 # Get domain_name from Ansible configuration
 DOMAIN_NAME := $(shell grep '^domain_name:' ansible/group_vars/all.yml | awk '{print $$2}' | tr -d '"')
-HOSTS_COMMENT := \# Managed by dspace-9-installer
+HOSTS_COMMENT := \# Managed by dspace-installer
 
 # Provider interface implementation
 .PHONY: provider-init provider-start provider-stop provider-destroy provider-ssh provider-get-ip provider-status provider-copy-ssh-key
@@ -193,7 +193,7 @@ hosts-add: ## Add VM IP to /etc/hosts
 		echo "🔄 Updating existing entry..."; \
 		sudo sed -i.bak "/$(DOMAIN_NAME)/d" /etc/hosts; \
 	fi; \
-	echo "$$VM_IP $(DOMAIN_NAME) # Managed by dspace-9-installer" | sudo tee -a /etc/hosts > /dev/null; \
+	echo "$$VM_IP $(DOMAIN_NAME) # Managed by dspace-installer" | sudo tee -a /etc/hosts > /dev/null; \
 	echo "✅ Hosts file updated successfully"; \
 	echo "📌 You can now access DSpace at: http://$(DOMAIN_NAME)"
 
@@ -204,7 +204,7 @@ hosts-remove: ## Remove VM IP from /etc/hosts
 	fi
 	@echo "🗑️  Removing hosts entry for $(DOMAIN_NAME)..."
 	@if grep -q "$(DOMAIN_NAME)" /etc/hosts; then \
-		sudo sed -i.bak "/$(DOMAIN_NAME).*Managed by dspace-9-installer/d" /etc/hosts; \
+		sudo sed -i.bak "/$(DOMAIN_NAME).*Managed by dspace-installer/d" /etc/hosts; \
 		echo "✅ Hosts entry removed"; \
 	else \
 		echo "ℹ️  No entry found for $(DOMAIN_NAME)"; \

@@ -4,7 +4,7 @@
 # Include configuration (provider selection and common variables)
 include config.mk
 
-.PHONY: help info configure-developer-machine build-vm start-vm stop-vm destroy-vm ssh ssh-copy-id vm-status
+.PHONY: help info show-available-providers configure-developer-machine build-vm start-vm stop-vm destroy-vm ssh ssh-copy-id vm-status
 .PHONY: hosts-add hosts-remove hosts-check
 .PHONY: update-apt install-prerequisites install-dspace install-dspace-all set-access-url
 .PHONY: migrate-plan migrate-from
@@ -44,6 +44,31 @@ info: ## Show current configuration
 	@echo "Ansible Inventory: $(ANSIBLE_INVENTORY)"
 	@echo ""
 	@$(MAKE) provider-status
+
+show-available-providers: ## Show which providers are usable on THIS machine
+	@echo "╔══════════════════════════════════════════════════════════╗"
+	@echo "║           Available Providers (this machine)             ║"
+	@echo "╚══════════════════════════════════════════════════════════╝"
+	@echo ""
+	@printf "  Host: %s\n\n" "$$(uname -srm)"
+	@for p in tart orbstack vagrant ssh docker local-linux; do \
+		ok=1; detail=""; \
+		case $$p in \
+		  tart)        if command -v tart    >/dev/null 2>&1; then detail="$$(command -v tart)"; else ok=0; detail="not installed (macOS native VMs)"; fi ;; \
+		  orbstack)    if command -v orbctl  >/dev/null 2>&1; then detail="$$(command -v orbctl)"; else ok=0; detail="orbctl not installed — https://orbstack.dev"; fi ;; \
+		  vagrant)     if command -v vagrant >/dev/null 2>&1; then detail="$$(command -v vagrant)"; else ok=0; detail="not installed"; fi ;; \
+		  ssh)         if command -v ssh     >/dev/null 2>&1; then detail="ready — set SSH_HOST=<ip> (Ubuntu/Debian)"; else ok=0; detail="ssh client missing"; fi ;; \
+		  docker)      if command -v docker  >/dev/null 2>&1; then \
+		                 if docker info >/dev/null 2>&1; then detail="daemon running"; else ok=0; detail="installed, daemon not running"; fi; \
+		               else ok=0; detail="not installed"; fi ;; \
+		  local-linux) if [ "$$(uname -s)" = "Linux" ] && command -v apt-get >/dev/null 2>&1; then detail="this host (loopback)"; else ok=0; detail="needs a Debian/Ubuntu Linux host"; fi ;; \
+		esac; \
+		[ "$$p" = "$(PROVIDER)" ] && detail="$$detail  ← default"; \
+		if [ $$ok -eq 1 ]; then icon="\033[32m✅\033[0m"; else icon="\033[31m❌\033[0m"; fi; \
+		printf "  %b %-13s %s\n" "$$icon" "$$p" "$$detail"; \
+	done
+	@echo ""
+	@echo "Use:  PROVIDER=<name> make <target>      (default: $(PROVIDER), change in config.mk)"
 
 # VM/Host Management (delegates to provider)
 configure-developer-machine: ## Configure developer machine and initialize VM/host
@@ -315,9 +340,9 @@ install-dspace-all: ## Install prerequisites and DSpace backend in one command
 	@echo ""
 	@echo "🎉 Complete DSpace backend stack installed successfully!"
 
-dspace-version: ## Install specific DSpace version (usage: make dspace-version VERSION=9.1)
+dspace-version: ## Install specific DSpace version (usage: make dspace-version VERSION=9.3)
 	@if [ -z "$(VERSION)" ]; then \
-		echo "❌ Please specify VERSION (e.g., make dspace-version VERSION=9.1)"; \
+		echo "❌ Please specify VERSION (e.g., make dspace-version VERSION=9.3)"; \
 		exit 1; \
 	fi
 	@echo "📦 Installing DSpace version $(VERSION)..."
@@ -428,9 +453,9 @@ install-complete: ## Complete installation: backend + frontend + nginx
 	@echo "   Backend API: http://$(VM_NAME)/server/api"
 	@echo ""
 
-frontend-version: ## Install specific frontend version (usage: make frontend-version VERSION=9.1)
+frontend-version: ## Install specific frontend version (usage: make frontend-version VERSION=9.3)
 	@if [ -z "$(VERSION)" ]; then \
-		echo "❌ Please specify VERSION (e.g., make frontend-version VERSION=9.1)"; \
+		echo "❌ Please specify VERSION (e.g., make frontend-version VERSION=9.3)"; \
 		exit 1; \
 	fi
 	@echo "📦 Installing DSpace frontend version $(VERSION)..."

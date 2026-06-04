@@ -6,10 +6,10 @@ or use the dedicated targets below for a running install.
 ## Key variables
 
 ```yaml
-dspace_version: "9.1"
+dspace_version: "10.0"
 dspace_install_dir: "/opt/dspace"
 postgres_version: "16"
-java_version: "17"
+java_version: "21"
 solr_version: "9.10.1"
 tomcat_version: "10.1.33"
 nodejs_version: "20"

@@ -108,4 +108,4 @@ Run directly against any inventory if you prefer:
 ## Links
 
 - [DSpace 9 Documentation](https://wiki.lyrasis.org/display/DSDOC9x)
-- [GitHub repository](https://github.com/mpasternak/dspace-9-installer-ansible)
+- [GitHub repository](https://github.com/mpasternak/dspace-installer)

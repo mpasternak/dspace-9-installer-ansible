@@ -1,10 +1,10 @@
-# DSpace 9 Installer
+# DSpace Installer
 
-[![Test DSpace Installation (Docker)](https://github.com/mpasternak/dspace-9-installer-ansible/actions/workflows/test-docker-installation.yml/badge.svg)](https://github.com/mpasternak/dspace-9-installer-ansible/actions/workflows/test-docker-installation.yml)
+[![Test DSpace Installation (Docker)](https://github.com/mpasternak/dspace-installer/actions/workflows/test-docker-installation.yml/badge.svg)](https://github.com/mpasternak/dspace-installer/actions/workflows/test-docker-installation.yml)
 
 > Provider-agnostic automation framework for installing DSpace 9 with support for Tart VMs, OrbStack machines, Vagrant, direct SSH hosts, and local Linux (loopback) installs
 
-📖 **Full documentation: <https://mpasternak.github.io/dspace-9-installer-ansible/>**
+📖 **Full documentation: <https://mpasternak.github.io/dspace-installer/>**
 
 ## Overview
 
@@ -375,7 +375,7 @@ idempotent.
 make install-dspace
 
 # Install specific version
-make dspace-version VERSION=9.1
+make dspace-version VERSION=9.3
 
 # Install from GitHub branch
 make dspace-github BRANCH=main

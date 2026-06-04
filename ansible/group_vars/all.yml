@@ -1,6 +1,9 @@
 ---
 # DSpace version configuration
-dspace_version: "9.1"
+# This is the DEFAULT version. The major (9 vs 10) selects a version profile in
+# ansible/vars/profiles/<major>.yml (loaded via include_vars in the install
+# playbooks), which overrides version-coupled vars such as java_version below.
+dspace_version: "10.0"
 dspace_source_type: "release"  # Options: "release" or "github"
 dspace_github_repo: "https://github.com/DSpace/DSpace.git"
 dspace_github_branch: "main"
@@ -35,7 +38,9 @@ postgres_host: "localhost"
 postgres_port: 5432
 
 # Java configuration
-java_version: "17"
+# Default matches the default DSpace (10.x -> JDK 21). The version profile in
+# ansible/vars/profiles/ overrides this for other majors (9.x -> JDK 17).
+java_version: "21"
 
 # Maven configuration
 maven_version: "3.8.8"
@@ -43,10 +48,15 @@ maven_version: "3.8.8"
 # Ant configuration
 ant_version: "1.10.14"
 
+# Apache artifact mirrors (used by the solr and tomcat roles).
+# Try the fast CDN first, then fall back to the permanent archive: dlcdn only
+# serves CURRENT releases (404s once a pinned version is superseded), whereas
+# archive.apache.org keeps every release forever. So the CDN gives speed and the
+# archive guarantees the download never breaks for an old pinned version.
+apache_cdn_base: "https://dlcdn.apache.org"
+apache_archive_base: "https://archive.apache.org/dist"
+
 # Solr configuration
-# Pinned versions are downloaded from archive.apache.org (see roles/solr),
-# which keeps every release permanently. downloads.apache.org only serves the
-# current releases, so pinned older versions 404 there once superseded.
 solr_version: "9.10.1"
 solr_port: 8983
 solr_home: "/opt/solr"

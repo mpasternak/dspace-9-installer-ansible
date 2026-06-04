@@ -22,11 +22,22 @@
     group: "{{ tomcat_group }}"
     mode: '0755'
 
-- name: Download Tomcat
-  get_url:
-    url: "https://archive.apache.org/dist/tomcat/tomcat-10/v{{ tomcat_version }}/bin/apache-tomcat-{{ tomcat_version }}.tar.gz"
-    dest: "/tmp/apache-tomcat-{{ tomcat_version }}.tar.gz"
-    mode: '0644'
+- name: Download Tomcat (fast CDN, fall back to archive.apache.org)
+  # CDN first for speed, archive fallback so a pinned (possibly superseded)
+  # tomcat_version never 404s. See apache_*_base in group_vars/all.yml.
+  block:
+    - name: Download Tomcat from CDN (dlcdn.apache.org)
+      get_url:
+        url: "{{ apache_cdn_base }}/tomcat/tomcat-10/v{{ tomcat_version }}/bin/apache-tomcat-{{ tomcat_version }}.tar.gz"
+        dest: "/tmp/apache-tomcat-{{ tomcat_version }}.tar.gz"
+        mode: '0644'
+        timeout: 30
+  rescue:
+    - name: Download Tomcat from archive.apache.org (fallback)
+      get_url:
+        url: "{{ apache_archive_base }}/tomcat/tomcat-10/v{{ tomcat_version }}/bin/apache-tomcat-{{ tomcat_version }}.tar.gz"
+        dest: "/tmp/apache-tomcat-{{ tomcat_version }}.tar.gz"
+        mode: '0644'
 
 - name: Extract Tomcat
   unarchive:

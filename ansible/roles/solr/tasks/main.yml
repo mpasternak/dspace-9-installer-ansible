@@ -14,13 +14,23 @@
     system: yes
     state: present
 
-- name: Download Solr
-  # Use archive.apache.org: it permanently hosts every release, so a pinned
-  # solr_version never 404s. downloads.apache.org only serves current releases.
-  get_url:
-    url: "https://archive.apache.org/dist/solr/solr/{{ solr_version }}/solr-{{ solr_version }}.tgz"
-    dest: "/tmp/solr-{{ solr_version }}.tgz"
-    mode: '0644'
+- name: Download Solr (fast CDN, fall back to archive.apache.org)
+  # dlcdn.apache.org is a fast CDN but only serves current releases; if a pinned
+  # solr_version has been superseded it 404s, so we fall back to the archive,
+  # which permanently hosts every release. See apache_*_base in group_vars/all.yml.
+  block:
+    - name: Download Solr from CDN (dlcdn.apache.org)
+      get_url:
+        url: "{{ apache_cdn_base }}/solr/solr/{{ solr_version }}/solr-{{ solr_version }}.tgz"
+        dest: "/tmp/solr-{{ solr_version }}.tgz"
+        mode: '0644'
+        timeout: 30
+  rescue:
+    - name: Download Solr from archive.apache.org (fallback)
+      get_url:
+        url: "{{ apache_archive_base }}/solr/solr/{{ solr_version }}/solr-{{ solr_version }}.tgz"
+        dest: "/tmp/solr-{{ solr_version }}.tgz"
+        mode: '0644'
 
 - name: Extract Solr
   unarchive:

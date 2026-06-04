@@ -4,6 +4,11 @@
   become: yes
 
   pre_tasks:
+    # Load version-coupled overrides (Java 21 for DSpace 10, Java 17 for 9.x).
+    # include_vars outranks group_vars/all.yml. See ansible/vars/profiles/.
+    - name: Load DSpace version profile (DSpace {{ dspace_version }})
+      ansible.builtin.include_vars: "vars/profiles/{{ dspace_version.split('.')[0] }}.yml"
+
     - name: Check if prerequisites are installed
       block:
         - name: Check Java

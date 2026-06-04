@@ -32,7 +32,7 @@ This project provides a **provider-agnostic automation framework** for deploying
 ```
 
 ### DSpace Stack
-- **Backend**: Java 17, PostgreSQL 16, Apache Solr 9.10.1, Apache Tomcat 10.1.33
+- **Backend**: Java 21, PostgreSQL 16, Apache Solr 9.10.1, Apache Tomcat 10.1.33
 - **Frontend**: Angular UI with Node.js 20 LTS, PM2 process manager
 - **Web Server**: Nginx with reverse proxy configuration
 - **Optional**: Handles server for persistent identifiers
@@ -125,8 +125,8 @@ PROVIDER=local-linux make build-vm install-complete
 ### Version Management
 ```bash
 # Specific DSpace version
-make dspace-version VERSION=9.1
-make frontend-version VERSION=9.1
+make dspace-version VERSION=9.3
+make frontend-version VERSION=9.3
 
 # GitHub branches
 make dspace-github BRANCH=main
@@ -184,10 +184,10 @@ make frontend-github BRANCH=dspace-9_x
 
 ### Key Variables (ansible/group_vars/all.yml)
 ```yaml
-dspace_version: "9.1"
+dspace_version: "10.0"
 dspace_install_dir: "/opt/dspace"
 postgres_version: "16"
-java_version: "17"
+java_version: "21"
 solr_version: "9.10.1"
 tomcat_version: "10.1.33"
 nodejs_version: "20"
@@ -355,5 +355,5 @@ make frontend-logs     # Frontend
 
 ## Links
 - [DSpace Documentation](https://wiki.lyrasis.org/display/DSDOC9x)
-- [GitHub Repository](https://github.com/mpasternak/dspace-9-installer-ansible)
+- [GitHub Repository](https://github.com/mpasternak/dspace-installer)
 - [DSpace Community](https://duraspace.org/dspace/)

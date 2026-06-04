@@ -142,7 +142,7 @@ Reproduce the issue locally:
 ```bash
 # On macOS with Vagrant installed
 git clone <your-repo>
-cd dspace-9-installer
+cd dspace-installer
 
 # Use the CI Vagrantfile
 cp .github/Vagrantfile.ci Vagrantfile
@@ -201,7 +201,7 @@ You can test locally without using GitHub Actions minutes:
 ```bash
 # Clone repository
 git clone <your-repo>
-cd dspace-9-installer
+cd dspace-installer
 
 # Copy CI Vagrantfile (optional)
 cp .github/Vagrantfile.ci Vagrantfile

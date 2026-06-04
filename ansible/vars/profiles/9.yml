@@ -1,0 +1,15 @@
+---
+# DSpace 9.x version profile.
+#
+# Loaded automatically when `dspace_version` is a 9.x release (e.g. "9.3").
+# Overrides group_vars/all.yml. The default install is DSpace 10 -- to stay on
+# the 9.x line, set dspace_version to a 9.x value in group_vars/all.yml.
+#
+# NOTE: CI only exercises the default (10.x) path. This 9.x profile is provided
+# for users who deliberately remain on 9.x, but it is not covered by CI.
+
+# DSpace 9 runs on JDK 17.
+java_version: "17"
+
+# DSpace 9 frontend (Angular) also runs on the Node 20 LTS line.
+nodejs_version: "20"

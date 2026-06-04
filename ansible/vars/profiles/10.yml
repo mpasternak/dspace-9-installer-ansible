@@ -1,0 +1,19 @@
+---
+# DSpace 10.x version profile.
+#
+# Loaded automatically by `include_vars` in the install playbooks, keyed on the
+# major of `dspace_version` (10.x -> this file). These values OVERRIDE the
+# defaults in group_vars/all.yml (include_vars has higher precedence than
+# group_vars).
+#
+# This is the DEFAULT profile: group_vars/all.yml ships dspace_version: "10.0".
+# Only values that DIFFER between DSpace majors live here; everything shared
+# (Tomcat 10.1.x, Solr 9.x, PostgreSQL 16) stays in group_vars/all.yml.
+
+# DSpace 10 requires JDK 21 (DSpace 9 used JDK 17).
+java_version: "21"
+
+# Frontend: DSpace 10 ships Angular 20, which needs Node >= 20.19. The Node 20
+# LTS line from NodeSource already satisfies this, so the value is unchanged
+# from all.yml -- declared here only to document the requirement.
+nodejs_version: "20"

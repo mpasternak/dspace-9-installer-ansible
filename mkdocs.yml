@@ -1,8 +1,8 @@
-site_name: DSpace 9 Installer
+site_name: DSpace Installer
 site_description: Provider-agnostic automation for deploying DSpace 9 (Tart, OrbStack, Vagrant, SSH, Docker, local Linux)
-site_url: https://mpasternak.github.io/dspace-9-installer-ansible/
-repo_url: https://github.com/mpasternak/dspace-9-installer-ansible
-repo_name: mpasternak/dspace-9-installer-ansible
+site_url: https://mpasternak.github.io/dspace-installer/
+repo_url: https://github.com/mpasternak/dspace-installer
+repo_name: mpasternak/dspace-installer
 edit_uri: edit/main/docs/
 copyright: MIT License
 
