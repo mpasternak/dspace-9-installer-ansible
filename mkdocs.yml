@@ -1,0 +1,65 @@
+site_name: DSpace 9 Installer
+site_description: Provider-agnostic automation for deploying DSpace 9 (Tart, OrbStack, Vagrant, SSH, Docker, local Linux)
+site_url: https://mpasternak.github.io/dspace-9-installer-ansible/
+repo_url: https://github.com/mpasternak/dspace-9-installer-ansible
+repo_name: mpasternak/dspace-9-installer-ansible
+edit_uri: edit/main/docs/
+copyright: MIT License
+
+docs_dir: docs
+exclude_docs: |
+  superpowers/
+
+theme:
+  name: material
+  icon:
+    repo: fontawesome/brands/github
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.top
+    - navigation.tracking
+    - navigation.instant
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - toc.follow
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - tables
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - toc:
+      permalink: true
+
+nav:
+  - Home: index.md
+  - Quick Start: quickstart.md
+  - Providers: providers.md
+  - Installation: installation.md
+  - Configuration: configuration.md
+  - Operations: operations.md
+  - Data Migration: data-migration.md
+  - Troubleshooting: troubleshooting.md
+  - Reference: reference.md

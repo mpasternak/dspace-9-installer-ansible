@@ -4,6 +4,8 @@
 
 > Provider-agnostic automation framework for installing DSpace 9 with support for Tart VMs, OrbStack machines, Vagrant, direct SSH hosts, and local Linux (loopback) installs
 
+📖 **Full documentation: <https://mpasternak.github.io/dspace-9-installer-ansible/>**
+
 ## Overview
 
 This project provides a flexible, provider-agnostic framework for deploying DSpace 9 to various targets. Whether you're using local VMs (Tart or OrbStack on macOS, or Vagrant cross-platform), deploying to physical servers and cloud instances via SSH, or installing directly onto the Linux machine you're already on (loopback), this framework handles it all with a consistent interface.
