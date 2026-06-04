@@ -8,7 +8,7 @@
     owner: "{{ frontend_user }}"
     group: "{{ frontend_group }}"
     mode: "0644"
-  notify: restart dspaceui
+  notify: Restart dspaceui
 
 - name: Create PM2 ecosystem configuration
   ansible.builtin.template:
@@ -17,7 +17,7 @@
     owner: "{{ frontend_user }}"
     group: "{{ frontend_group }}"
     mode: "0644"
-  notify: restart dspaceui
+  notify: Restart dspaceui
 
 - name: Create symlink to frontend directory
   ansible.builtin.file:

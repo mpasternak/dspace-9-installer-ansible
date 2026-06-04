@@ -78,7 +78,7 @@
   ansible.builtin.shell: cp -R {{ dspace_install_dir }}/solr/* /var/solr/data/
   become: true
   changed_when: true
-  notify: restart solr
+  notify: Restart solr
   tags: solr_cores
 
 - name: Set Solr cores ownership
@@ -125,7 +125,7 @@
     owner: "{{ tomcat_user }}"
     group: "{{ tomcat_group }}"
     mode: "0644"
-  notify: restart tomcat
+  notify: Restart tomcat
 
 - name: Flush handlers to restart services
   ansible.builtin.meta: flush_handlers

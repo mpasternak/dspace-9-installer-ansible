@@ -79,7 +79,7 @@
     regexp: "^#?listen_addresses"
     line: "listen_addresses = 'localhost'"
     state: present
-  notify: restart postgresql
+  notify: Restart postgresql
 
 - name: Configure PostgreSQL authentication
   ansible.builtin.template:
@@ -88,7 +88,7 @@
     owner: postgres
     group: postgres
     mode: "0640"
-  notify: restart postgresql
+  notify: Restart postgresql
 
 - name: Install pgcrypto extension
   community.postgresql.postgresql_ext:

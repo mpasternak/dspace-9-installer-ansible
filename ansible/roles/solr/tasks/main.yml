@@ -75,7 +75,7 @@
     owner: root
     group: root
     mode: "0644"
-  notify: restart solr
+  notify: Restart solr
 
 - name: Create Solr systemd service file
   ansible.builtin.template:
@@ -84,7 +84,7 @@
     owner: root
     group: root
     mode: "0644"
-  notify: reload systemd
+  notify: Reload systemd
 
 - name: Configure system-wide limits for Solr user
   ansible.builtin.copy:

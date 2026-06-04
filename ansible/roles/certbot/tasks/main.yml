@@ -44,7 +44,7 @@
     - not cert_exists.stat.exists | default(true)
     - not certbot_webroot_mode | default(false)
   changed_when: true
-  notify: restart nginx
+  notify: Restart nginx
 
 - name: Generate certificate using webroot mode
   ansible.builtin.command: >
@@ -61,7 +61,7 @@
     - not cert_exists.stat.exists | default(true)
     - certbot_webroot_mode | default(false)
   changed_when: true
-  notify: reload nginx
+  notify: Reload nginx
 
 - name: Start Nginx after certificate generation
   ansible.builtin.systemd:
@@ -91,7 +91,7 @@
   when:
     - ssl_enabled | default(false)
     - certbot_use_systemd_timer | default(false)
-  notify: reload systemd
+  notify: Reload systemd
 
 - name: Create systemd service for certificate renewal
   ansible.builtin.template:
@@ -103,7 +103,7 @@
   when:
     - ssl_enabled | default(false)
     - certbot_use_systemd_timer | default(false)
-  notify: reload systemd
+  notify: Reload systemd
 
 - name: Enable and start certbot renewal timer
   ansible.builtin.systemd:

@@ -19,7 +19,7 @@
     - { direction: "incoming", policy: "{{ ufw_default_incoming }}" }
     - { direction: "outgoing", policy: "{{ ufw_default_outgoing }}" }
     - { direction: "routed", policy: "{{ ufw_default_routed }}" }
-  notify: reload ufw
+  notify: Reload ufw
   when: firewall_enabled | default(true)
 
 - name: Allow SSH traffic (port 22)
@@ -28,7 +28,7 @@
     port: "22"
     proto: tcp
     comment: "SSH access"
-  notify: reload ufw
+  notify: Reload ufw
   when: firewall_enabled | default(true)
 
 - name: Allow HTTP traffic (port 80)
@@ -37,7 +37,7 @@
     port: "80"
     proto: tcp
     comment: "HTTP web server"
-  notify: reload ufw
+  notify: Reload ufw
   when: firewall_enabled | default(true)
 
 - name: Allow HTTPS traffic (port 443)
@@ -46,7 +46,7 @@
     port: "443"
     proto: tcp
     comment: "HTTPS web server"
-  notify: reload ufw
+  notify: Reload ufw
   when: firewall_enabled | default(true)
 
 - name: Allow DSpace Handles Server (port 2641 TCP) - Production mode
@@ -55,7 +55,7 @@
     port: "2641"
     proto: tcp
     comment: "DSpace Handles Server TCP"
-  notify: reload ufw
+  notify: Reload ufw
   when: firewall_enabled | default(true)
 
 - name: Allow DSpace Handles Server (port 2641 UDP) - Production mode
@@ -64,7 +64,7 @@
     port: "2641"
     proto: udp
     comment: "DSpace Handles Server UDP"
-  notify: reload ufw
+  notify: Reload ufw
   when: firewall_enabled | default(true)
 
 - name: Allow Tomcat port (8080) - Development mode
@@ -73,7 +73,7 @@
     port: "{{ tomcat_port }}"
     proto: tcp
     comment: "Tomcat application server"
-  notify: reload ufw
+  notify: Reload ufw
   when:
     - firewall_enabled | default(true)
     - firewall_mode == 'development' or firewall_mode == 'all'
@@ -84,7 +84,7 @@
     port: "8000"
     proto: tcp
     comment: "Alternative Tomcat port"
-  notify: reload ufw
+  notify: Reload ufw
   when:
     - firewall_enabled | default(true)
     - firewall_mode == 'development' or firewall_mode == 'all'
@@ -95,7 +95,7 @@
     port: "{{ dspace_frontend_port }}"
     proto: tcp
     comment: "DSpace Angular frontend"
-  notify: reload ufw
+  notify: Reload ufw
   when:
     - firewall_enabled | default(true)
     - firewall_mode == 'development' or firewall_mode == 'all'
@@ -106,7 +106,7 @@
     port: "{{ solr_port }}"
     proto: tcp
     comment: "Solr search engine"
-  notify: reload ufw
+  notify: Reload ufw
   when:
     - firewall_enabled | default(true)
     - firewall_mode == 'all'
@@ -117,7 +117,7 @@
     port: "{{ postgres_port }}"
     proto: tcp
     comment: "PostgreSQL database"
-  notify: reload ufw
+  notify: Reload ufw
   when:
     - firewall_enabled | default(true)
     - firewall_mode == 'all'

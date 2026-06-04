@@ -88,7 +88,7 @@
     group: "{{ tomcat_group }}"
     mode: "0600"
     backup: true
-  notify: restart tomcat
+  notify: Restart tomcat
 
 - name: Configure Tomcat context.xml
   ansible.builtin.template:
@@ -98,7 +98,7 @@
     group: "{{ tomcat_group }}"
     mode: "0600"
     backup: true
-  notify: restart tomcat
+  notify: Restart tomcat
 
 - name: Create Tomcat systemd service file
   ansible.builtin.template:
@@ -107,7 +107,7 @@
     owner: root
     group: root
     mode: "0644"
-  notify: reload systemd
+  notify: Reload systemd
 
 - name: Remove default webapps
   ansible.builtin.file:

@@ -12,7 +12,7 @@
   ansible.builtin.file:
     path: /etc/nginx/sites-enabled/default
     state: absent
-  notify: reload nginx
+  notify: Reload nginx
 
 - name: Create Nginx configuration
   ansible.builtin.template:
@@ -22,7 +22,7 @@
     group: root
     mode: "0644"
     backup: true
-  notify: reload nginx
+  notify: Reload nginx
 
 - name: Create DSpace site configuration
   ansible.builtin.template:
@@ -31,14 +31,14 @@
     owner: root
     group: root
     mode: "0644"
-  notify: reload nginx
+  notify: Reload nginx
 
 - name: Enable DSpace site
   ansible.builtin.file:
     src: /etc/nginx/sites-available/dspace
     dest: /etc/nginx/sites-enabled/dspace
     state: link
-  notify: reload nginx
+  notify: Reload nginx
 
 - name: Create directory for SSL certificates
   ansible.builtin.file:
