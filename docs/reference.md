@@ -74,7 +74,7 @@ Run directly against any inventory if you prefer:
 | Java | OpenJDK 17 |
 | PostgreSQL | 16 |
 | Apache Solr | 9.10.1 |
-| Apache Tomcat | 10.1.33 (backend webapp on :8080) |
+| Apache Tomcat | 10.1.55 (backend webapp on :8080) |
 | Node.js | 20 LTS (frontend, PM2 cluster) |
 | Web server | nginx (reverse proxy) |
 

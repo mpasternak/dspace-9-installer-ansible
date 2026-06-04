@@ -32,7 +32,7 @@ This project provides a **provider-agnostic automation framework** for deploying
 ```
 
 ### DSpace Stack
-- **Backend**: Java 21, PostgreSQL 16, Apache Solr 9.10.1, Apache Tomcat 10.1.33
+- **Backend**: Java 21, PostgreSQL 16, Apache Solr 9.10.1, Apache Tomcat 10.1.55
 - **Frontend**: Angular UI with Node.js 20 LTS, PM2 process manager
 - **Web Server**: Nginx with reverse proxy configuration
 - **Optional**: Handles server for persistent identifiers
@@ -189,7 +189,7 @@ dspace_install_dir: "/opt/dspace"
 postgres_version: "16"
 java_version: "21"
 solr_version: "9.10.1"
-tomcat_version: "10.1.33"
+tomcat_version: "10.1.55"
 nodejs_version: "20"
 domain_name: "dspace-server.localnet"
 ssl_enabled: false

@@ -11,7 +11,7 @@ dspace_install_dir: "/opt/dspace"
 postgres_version: "16"
 java_version: "21"
 solr_version: "9.10.1"
-tomcat_version: "10.1.33"
+tomcat_version: "10.1.55"
 nodejs_version: "20"
 domain_name: "dspace-server.localnet"   # change to your real domain
 ssl_enabled: false                       # true once you have a valid domain

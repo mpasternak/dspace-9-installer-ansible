@@ -477,8 +477,8 @@ All targets work with any provider (Tart, OrbStack, Vagrant, SSH, Docker, or loc
 - **Base directory**: `/opt/dspace`
 - **Database**: PostgreSQL 16
 - **Search engine**: Apache Solr 9.10.1
-- **Application server**: Apache Tomcat 10.1.33
-- **Java**: OpenJDK 17
+- **Application server**: Apache Tomcat 10.1.55
+- **Java**: OpenJDK 21
 - **Handles server**: Optional, runs as systemd service (install with `make install-handles-server`)
 
 ### Firewall (UFW)
