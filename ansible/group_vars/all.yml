@@ -63,6 +63,12 @@ tomcat_group: "tomcat"
 # DSpace configuration
 dspace_server_url: "http://{{ domain_name }}/server"
 dspace_ui_url: "http://{{ domain_name }}/"
+# Frontend REST endpoint (what the browser + SSR call). Defaults preserve the
+# historical http://<domain_name>:80 behaviour; `make set-access-url` overrides them.
+dspace_rest_ssl: "{{ ssl_enabled }}"
+dspace_rest_host: "{{ domain_name }}"
+dspace_rest_port: "{{ 443 if ssl_enabled | bool else 80 }}"
+dspace_rest_namespace: "/server"
 dspace_name: "DSpace at My Organization"
 dspace_admin_email: "admin@localhost"
 dspace_admin_firstname: "Admin"

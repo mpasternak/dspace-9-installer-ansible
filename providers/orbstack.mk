@@ -92,6 +92,10 @@ provider-ssh: ## SSH into the OrbStack machine
 	@echo "Connecting to machine '$(VM_NAME)'..."
 	@ssh $(VM_NAME)@orb
 
+provider-exec: ## Run REMOTE_CMD on the machine over SSH (e.g. REMOTE_CMD="uptime")
+	@if [ -z "$(REMOTE_CMD)" ]; then echo "❌ REMOTE_CMD is required"; exit 1; fi
+	@ssh -t $(VM_NAME)@orb "$(REMOTE_CMD)"
+
 provider-get-ip: ## Get IP address of the OrbStack machine
 	@IP=$$(orbctl list 2>/dev/null | awk '$$1 == "$(VM_NAME)" && $$2 == "running" {print $$NF}'); \
 	if [ -n "$$IP" ]; then \

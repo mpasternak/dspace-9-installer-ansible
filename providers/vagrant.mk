@@ -97,6 +97,10 @@ provider-ssh: ## SSH into the Vagrant VM
 	@echo "Connecting to VM '$(VM_NAME)'..."
 	@vagrant ssh
 
+provider-exec: ## Run REMOTE_CMD on the VM over SSH (e.g. REMOTE_CMD="uptime")
+	@if [ -z "$(REMOTE_CMD)" ]; then echo "❌ REMOTE_CMD is required"; exit 1; fi
+	@vagrant ssh -c "$(REMOTE_CMD)" -- -t
+
 provider-get-ip: ## Get IP address of the Vagrant VM
 	@vagrant ssh-config 2>/dev/null | grep HostName | awk '{print $$2}' || \
 		(vagrant ssh -c "ip addr show | grep 'inet ' | grep -v '127.0.0.1' | head -1 | awk '{print \$$2}' | cut -d/ -f1" 2>/dev/null) || \

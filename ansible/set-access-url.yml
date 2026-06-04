@@ -1,0 +1,92 @@
+---
+# Set the public access URL of a running DSpace installation.
+#
+#   make set-access-url URL=http://192.168.64.11
+#   make set-access-url URL=https://dspace.example.org
+#
+# Updates the backend (local.cfg: dspace.ui.url / dspace.server.url / CORS
+# allowed origins) and the frontend (config.prod.yml: rest ssl/host/port) so the
+# browser, SSR and CORS all agree on one URL, then restarts Tomcat and the PM2
+# frontend so the change takes effect. Idempotent — safe to re-run.
+- name: Set DSpace access URL
+  hosts: dspace_servers
+  become: true
+  vars:
+    _scheme: "{{ access_url | urlsplit('scheme') }}"
+    _host: "{{ access_url | urlsplit('hostname') }}"
+    _port: "{{ (access_url | urlsplit('port')) or (443 if (access_url | urlsplit('scheme')) == 'https' else 80) }}"
+    _base: "{{ access_url | regex_replace('/+$', '') }}"
+    # Overrides consumed by the local.cfg edits + the config.prod.yml template:
+    dspace_ui_url: "{{ _base }}/"
+    dspace_server_url: "{{ _base }}/server"
+    dspace_rest_ssl: "{{ 'true' if _scheme == 'https' else 'false' }}"
+    dspace_rest_host: "{{ _host }}"
+    dspace_rest_port: "{{ _port }}"
+    dspace_rest_namespace: "/server"
+  pre_tasks:
+    - name: Validate URL=...
+      ansible.builtin.assert:
+        that:
+          - access_url is defined
+          - access_url | length > 0
+          - _scheme in ['http', 'https']
+          - _host | length > 0
+        fail_msg: "Pass a valid URL, e.g.  make set-access-url URL=http://192.168.64.11"
+        quiet: true
+  tasks:
+    - name: "Backend: set dspace.ui.url (local.cfg)"
+      ansible.builtin.lineinfile:
+        path: "{{ dspace_install_dir }}/config/local.cfg"
+        regexp: '^\s*dspace\.ui\.url\s*='
+        line: "dspace.ui.url = {{ dspace_ui_url }}"
+      notify: restart tomcat
+
+    - name: "Backend: set dspace.server.url (local.cfg)"
+      ansible.builtin.lineinfile:
+        path: "{{ dspace_install_dir }}/config/local.cfg"
+        regexp: '^\s*dspace\.server\.url\s*='
+        line: "dspace.server.url = {{ dspace_server_url }}"
+      notify: restart tomcat
+
+    - name: "Backend: set REST CORS allowed origins (local.cfg)"
+      ansible.builtin.lineinfile:
+        path: "{{ dspace_install_dir }}/config/local.cfg"
+        regexp: '^\s*rest\.cors\.allowed-origins\s*='
+        line: "rest.cors.allowed-origins = {{ dspace_ui_url }}"
+      notify: restart tomcat
+
+    - name: "Frontend: re-render config.prod.yml with the new REST endpoint"
+      ansible.builtin.template:
+        src: "{{ playbook_dir }}/roles/dspace-frontend/templates/config.prod.yml.j2"
+        dest: "{{ dspace_frontend_config_dir }}/config.prod.yml"
+        owner: "{{ frontend_user }}"
+        group: "{{ frontend_group }}"
+        mode: '0644'
+      notify: restart dspaceui
+
+    - name: Summary
+      ansible.builtin.debug:
+        msg:
+          - "Access URL set to: {{ access_url }}"
+          - "  backend  dspace.ui.url     = {{ dspace_ui_url }}"
+          - "  backend  dspace.server.url = {{ dspace_server_url }}"
+          - "  frontend rest: ssl={{ dspace_rest_ssl }} host={{ dspace_rest_host }} port={{ dspace_rest_port }}"
+          - "Tomcat + frontend restart via handlers (≈30-60s)."
+
+  handlers:
+    - name: restart tomcat
+      ansible.builtin.systemd:
+        name: tomcat
+        state: restarted
+
+    - name: restart dspaceui
+      become: true
+      become_user: "{{ frontend_user }}"
+      ansible.builtin.shell: |
+        pm2 restart {{ pm2_app_name | default('dspace-ui') }} || pm2 start {{ dspace_frontend_source_dir }}/dspace-ui.json
+      environment:
+        PATH: "/usr/bin:/bin:/usr/local/bin"
+      register: _restart_ui
+      changed_when: >-
+        'restarted' in _restart_ui.stdout or 'launched' in _restart_ui.stdout
+        or 'online' in _restart_ui.stdout

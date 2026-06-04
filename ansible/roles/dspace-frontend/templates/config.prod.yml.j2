@@ -15,10 +15,10 @@ ui:
 
 # REST API Settings
 rest:
-  ssl: false
-  host: {{  domain_name }}
-  port: 80
-  nameSpace: /server
+  ssl: {{ dspace_rest_ssl | lower }}
+  host: {{ dspace_rest_host }}
+  port: {{ dspace_rest_port }}
+  nameSpace: {{ dspace_rest_namespace }}
 
 # Cache Settings
 cache:

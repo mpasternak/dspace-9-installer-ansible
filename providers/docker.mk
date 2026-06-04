@@ -65,6 +65,10 @@ provider-ssh: ## SSH into the Docker container
 	@echo "Connecting to container '$(DOCKER_CONTAINER_NAME)'..."
 	@ssh -o StrictHostKeyChecking=no -p $(DOCKER_SSH_PORT) admin@localhost
 
+provider-exec: ## Run REMOTE_CMD in the container over SSH (e.g. REMOTE_CMD="uptime")
+	@if [ -z "$(REMOTE_CMD)" ]; then echo "❌ REMOTE_CMD is required"; exit 1; fi
+	@ssh -t -o StrictHostKeyChecking=no -p $(DOCKER_SSH_PORT) admin@localhost "$(REMOTE_CMD)"
+
 provider-get-ip: ## Get IP address (always localhost for Docker)
 	@echo "localhost"
 

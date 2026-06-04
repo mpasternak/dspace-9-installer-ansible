@@ -62,6 +62,10 @@ provider-ssh: ## SSH into the configured host
 	@echo "Connecting to $(SSH_HOST):$(SSH_PORT)..."
 	@ssh -p $(SSH_PORT) $(SSH_USER)@$(SSH_HOST)
 
+provider-exec: ## Run REMOTE_CMD on the host over SSH (e.g. REMOTE_CMD="uptime")
+	@if [ -z "$(REMOTE_CMD)" ]; then echo "❌ REMOTE_CMD is required"; exit 1; fi
+	@ssh -t -p $(SSH_PORT) $(SSH_USER)@$(SSH_HOST) "$(REMOTE_CMD)"
+
 provider-get-ip: ## Get IP address of the SSH host
 	@echo $(SSH_HOST)
 

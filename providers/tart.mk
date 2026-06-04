@@ -118,6 +118,10 @@ provider-ssh: ## SSH into the Tart VM
 	@echo "Connecting to VM '$(VM_NAME)'..."
 	@ssh $(SSH_USER)@$$(tart ip $(VM_NAME))
 
+provider-exec: ## Run REMOTE_CMD on the VM over SSH (e.g. REMOTE_CMD="uptime")
+	@if [ -z "$(REMOTE_CMD)" ]; then echo "❌ REMOTE_CMD is required"; exit 1; fi
+	@ssh -t $(SSH_USER)@$$(tart ip $(VM_NAME)) "$(REMOTE_CMD)"
+
 provider-get-ip: ## Get IP address of the Tart VM
 	@tart ip $(VM_NAME) 2>/dev/null || (echo "VM not running" >&2; exit 1)
 

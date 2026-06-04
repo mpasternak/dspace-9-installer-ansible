@@ -6,9 +6,10 @@ include config.mk
 
 .PHONY: help info configure-developer-machine build-vm start-vm stop-vm destroy-vm ssh ssh-copy-id vm-status
 .PHONY: hosts-add hosts-remove hosts-check
-.PHONY: update-apt install-prerequisites install-dspace install-dspace-all
+.PHONY: update-apt install-prerequisites install-dspace install-dspace-all set-access-url
 .PHONY: dspace-download dspace-build dspace-install-only dspace-rebuild
 .PHONY: dspace-version dspace-github clean
+.PHONY: open-browser open-api open-solr _open-resolved provider-exec
 
 # Default target
 .DEFAULT_GOAL := help
@@ -119,6 +120,49 @@ ssh-copy-id: ## Copy SSH key to VM/host
 vm-status: ## Check VM/host status
 	@$(MAKE) provider-status
 
+# Browser access — open the running DSpace instance in your default browser.
+# The host is resolved via the active provider (provider-get-ip), so these work
+# across Tart, OrbStack, Vagrant, SSH and local-linux. Overridable:
+#   make open-browser BROWSER_PATH=server/api   # frontend host, different path
+#   make open-browser URL=http://1.2.3.4:8983/solr  # open an explicit URL
+#   make open-solr SOLR_PORT=8984                # non-default Solr port
+BROWSER_SCHEME ?= http
+SOLR_PORT ?= 8983
+BROWSER_PATH ?=
+
+open-browser: ## Open the DSpace frontend in your default browser
+	@$(MAKE) --no-print-directory _open-resolved OPEN_PATH="$(BROWSER_PATH)"
+
+open-api: ## Open the DSpace backend API in your default browser
+	@$(MAKE) --no-print-directory _open-resolved OPEN_PATH="server/"
+
+open-solr: ## Open the Solr admin UI in your default browser
+	@$(MAKE) --no-print-directory _open-resolved OPEN_PATH="solr/" OPEN_PORT="$(SOLR_PORT)"
+
+# Internal: build "$(BROWSER_SCHEME)://<host>[:port]/<path>" from the active
+# provider's IP (or use URL=... verbatim) and open it cross-platform.
+_open-resolved:
+	@URL="$(URL)"; \
+	if [ -z "$$URL" ]; then \
+		HOST=$$($(MAKE) -s provider-get-ip 2>/dev/null | tail -n1); \
+		if [ -z "$$HOST" ]; then \
+			echo "❌ Could not determine the target host — is the VM/host running?"; \
+			echo "   Check with: make vm-status"; \
+			exit 1; \
+		fi; \
+		PORT="$(OPEN_PORT)"; \
+		if [ -n "$$PORT" ]; then PORT=":$$PORT"; fi; \
+		URL="$(BROWSER_SCHEME)://$$HOST$$PORT/$(OPEN_PATH)"; \
+	fi; \
+	echo "🌐 Opening $$URL ..."; \
+	if command -v open >/dev/null 2>&1; then open "$$URL"; \
+	elif command -v xdg-open >/dev/null 2>&1; then xdg-open "$$URL"; \
+	elif command -v wslview >/dev/null 2>&1; then wslview "$$URL"; \
+	else \
+		echo "⚠️  No browser opener found (open / xdg-open / wslview)."; \
+		echo "   Please open this URL manually: $$URL"; \
+	fi
+
 # Hosts file management - delegates to provider if supported
 # Currently only implemented for Tart provider
 
@@ -127,6 +171,23 @@ update-apt: ## Update apt packages on target system
 	@echo "Updating apt packages..."
 	@echo "Running Ansible playbook..."
 	@cd $(ANSIBLE_PLAYBOOK_DIR) && ansible-playbook $(ANSIBLE_VERBOSE) -i $(ANSIBLE_INVENTORY) update-system.yml
+
+set-access-url: ## Set the public access URL (usage: make set-access-url URL=http://1.2.3.4)
+	@if [ -z "$(URL)" ]; then \
+		echo "❌ Please specify URL (e.g. make set-access-url URL=http://192.168.64.11)"; \
+		echo "   Supports http/https, a hostname or IP, and an optional :port."; \
+		exit 1; \
+	fi
+	@echo ""
+	@echo "╔══════════════════════════════════════════════════════════╗"
+	@echo "║              Setting DSpace Access URL                   ║"
+	@echo "╚══════════════════════════════════════════════════════════╝"
+	@echo ""
+	@echo "🔧 Pointing backend + frontend at: $(URL)"
+	@cd $(ANSIBLE_PLAYBOOK_DIR) && ansible-playbook $(ANSIBLE_VERBOSE) -i $(ANSIBLE_INVENTORY) set-access-url.yml -e "access_url=$(URL)"
+	@echo ""
+	@echo "✅ Done. Open: $(URL)"
+	@echo "   (Tomcat restarts ~30-60s, so the first page load may be slow.)"
 
 install-prerequisites: ## Install DSpace prerequisites (Java, PostgreSQL, Solr, Tomcat)
 	@echo ""
@@ -309,9 +370,14 @@ frontend-restart: ## Restart DSpace frontend (PM2 process)
 		-a "sudo -u dspaceui pm2 restart dspace-ui" --become
 	@echo "✅ Frontend restarted"
 
-frontend-logs: ## View DSpace frontend PM2 logs
-	@echo "📋 Viewing DSpace frontend logs (Ctrl+C to exit)..."
-	@$(MAKE) provider-ssh -- "sudo -u dspaceui pm2 logs dspace-ui --lines 100"
+# Initial number of log lines shown before following live (override: LINES=500)
+LINES ?= 200
+# Backend log file followed by tail-logs (override e.g. LOG_FILE=/var/log/tomcat/catalina.out)
+LOG_FILE ?= /opt/dspace/log/dspace.log
+
+frontend-logs: ## Follow DSpace frontend (PM2) logs live (Ctrl+C to stop)
+	@echo "📋 Following DSpace frontend (PM2) logs — press Ctrl+C to stop..."
+	@$(MAKE) provider-exec REMOTE_CMD="sudo -u dspaceui pm2 logs dspace-ui --lines $(LINES)" || true
 
 frontend-status: ## Check DSpace frontend status
 	@echo "📊 Checking DSpace frontend status..."
@@ -391,9 +457,10 @@ check-services: ## Check status of all DSpace services
 		ansible -i $(ANSIBLE_INVENTORY) all -m shell \
 		-a "sudo systemctl status postgresql tomcat solr --no-pager | head -n 3"
 
-tail-logs: ## Tail DSpace logs
-	@echo "Tailing DSpace logs..."
-	@$(MAKE) provider-ssh -- "sudo tail -f /opt/dspace/log/dspace.log"
+tail-logs: ## Follow DSpace backend logs live (Ctrl+C to stop; LOG_FILE/LINES overridable)
+	@echo "📋 Following $(LOG_FILE) — press Ctrl+C to stop..."
+	@echo "   (uses 'tail -F', so it keeps waiting/retries if the file isn't there yet)"
+	@$(MAKE) provider-exec REMOTE_CMD="sudo tail -F -n $(LINES) $(LOG_FILE)" || true
 
 clean-logs: ## Clean DSpace logs
 	@echo "Cleaning DSpace logs..."

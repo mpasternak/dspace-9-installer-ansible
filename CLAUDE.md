@@ -149,6 +149,19 @@ make frontend-github BRANCH=dspace-9_x
 - `frontend-logs` - View PM2 logs
 - `remove-frontend` - Clean frontend removal
 
+### Access (open in browser)
+- `open-browser` - Open the frontend (`http://<host>/`)
+- `open-api` - Open the backend (`http://<host>/server/`, REST/HAL browser)
+- `open-solr` - Open Solr admin (`http://<host>:8983/solr/`)
+- `set-access-url URL=...` - Re-point a running install at a public URL. Edits
+  backend `local.cfg` (dspace.ui.url / dspace.server.url / CORS) + frontend
+  `config.prod.yml` (`rest` ssl/host/port, now templated from `dspace_rest_*`),
+  then restarts Tomcat + frontend. Playbook: `ansible/set-access-url.yml`.
+  Browser/SSR/CORS must all agree on one URL or the UI shows "Service Unavailable".
+- Host is resolved via the active provider's `provider-get-ip`; override with
+  `URL=...`, `BROWSER_PATH=...`, `BROWSER_SCHEME=https`, or `SOLR_PORT=...`.
+  Opener: `open` (macOS) / `xdg-open` (Linux) / `wslview` (WSL).
+
 ## Configuration Files
 
 ### Main Configuration

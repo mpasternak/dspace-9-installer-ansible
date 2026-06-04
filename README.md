@@ -306,6 +306,49 @@ make destroy-vm
 make build-vm
 ```
 
+### Opening DSpace in a Browser
+```bash
+# Open the frontend (resolves the host from the active provider)
+make open-browser
+
+# Open the backend API or the Solr admin UI
+make open-api
+make open-solr
+
+# Same host, a different path; or open an explicit URL
+make open-browser BROWSER_PATH=server/api
+make open-browser URL=http://1.2.3.4:8983/solr
+```
+These work across all providers (the host comes from the active provider's
+IP — VM IP, SSH host, or 127.0.0.1 for local-linux) and use `open` (macOS),
+`xdg-open` (Linux), or `wslview` (WSL).
+
+### Changing the Access URL
+
+DSpace must be reached at the URL it's configured for — the browser uses that
+URL for API calls, so a mismatch (e.g. opening `https://<ip>/` when it's
+configured for `http://dspace-server.localnet/`) breaks the UI with a
+"Service Unavailable" page. To re-point a running install at a different URL:
+
+```bash
+# Access by IP over HTTP (no /etc/hosts entry needed)
+make set-access-url URL=http://192.168.64.11
+
+# Access by hostname / real domain
+make set-access-url URL=https://dspace.example.org
+```
+
+This rewrites the backend (`dspace.ui.url`, `dspace.server.url`, CORS) and the
+frontend (`rest` host/port/ssl), then restarts Tomcat and the frontend. It's
+idempotent.
+
+> **HTTPS note:** if you use `https://`, the SSR server (Node) must trust the
+> REST API's certificate. Use a properly-issued cert (e.g. Let's Encrypt via the
+> `certbot` role) or add your dev CA to the system trust store on the VM — do
+> **not** disable TLS verification (`NODE_TLS_REJECT_UNAUTHORIZED=0`), as that
+> exposes the SSR↔API traffic to MITM. For local dev, the `http://<host>` form
+> avoids this entirely.
+
 ### DSpace Installation Options
 ```bash
 # Install default DSpace version
@@ -347,12 +390,16 @@ All targets work with any provider (Tart, OrbStack, Vagrant, SSH, Docker, or loc
 | `build-vm` | Create VM or validate SSH host (provider-specific) |
 | `configure-host` | Alias for build-vm when using SSH provider |
 | `ssh-copy-id` | Copy SSH keys to VM/host |
+| `set-access-url` | Point backend + frontend at a public URL (URL=http://host[:port]) |
 | **VM/Host Management** | |
 | `start-vm` | Start VM (no-op for SSH/local-linux providers) |
 | `stop-vm` | Stop VM (no-op for SSH/local-linux providers) |
 | `destroy-vm` | Delete VM (no-op for SSH/local-linux providers) |
 | `vm-status` | Check VM/host status |
 | `ssh` | SSH into VM/host |
+| `open-browser` | Open the DSpace frontend in your default browser |
+| `open-api` | Open the DSpace backend (`/server/`, REST/HAL browser) in your browser |
+| `open-solr` | Open the Solr admin UI (`:8983/solr`) in your browser |
 | **DSpace Installation** | |
 | `install-prerequisites` | Install Java, PostgreSQL, Solr, Tomcat |
 | `install-dspace` | Complete DSpace backend installation |

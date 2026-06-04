@@ -69,6 +69,10 @@ provider-ssh: ## Open a local shell (you are already on the host)
 	@echo "   Launching a local shell ($${SHELL:-/bin/bash})..."
 	@exec $${SHELL:-/bin/bash}
 
+provider-exec: ## Run REMOTE_CMD locally (this machine is the target)
+	@if [ -z "$(REMOTE_CMD)" ]; then echo "❌ REMOTE_CMD is required"; exit 1; fi
+	@bash -c "$(REMOTE_CMD)"
+
 provider-get-ip: ## Get IP address (always localhost for loopback)
 	@echo "127.0.0.1"
 
