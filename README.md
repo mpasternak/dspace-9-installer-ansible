@@ -416,7 +416,10 @@ All targets work with any provider (Tart, OrbStack, Vagrant, SSH, Docker, or loc
 | **Maintenance & Utilities** | |
 | `update-apt` | Update Ubuntu packages via Ansible |
 | `check-services` | Check status of all DSpace services |
-| `tail-logs` | Tail DSpace logs |
+| `tail-logs` | Follow backend logs live (Ctrl+C; `LOG_FILE=`/`LINES=` overridable) |
+| `frontend-logs` | Follow frontend (PM2) logs live |
+| `frontend-restart` | Restart the frontend (PM2 process) |
+| `frontend-status` | Show frontend (PM2) status |
 | `clean-logs` | Clean DSpace logs |
 | `backup-db` | Backup DSpace database |
 | `clean` | Remove Emacs backup files (*~, #*#, .#*) |
@@ -431,6 +434,7 @@ All targets work with any provider (Tart, OrbStack, Vagrant, SSH, Docker, or loc
 | `dspace-download.yml` | Download DSpace source code | `ansible-playbook -i inventory.ini dspace-download.yml` |
 | `dspace-build.yml` | Build DSpace with Maven | `ansible-playbook -i inventory.ini dspace-build.yml` |
 | `dspace-install-only.yml` | Install pre-built DSpace | `ansible-playbook -i inventory.ini dspace-install-only.yml` |
+| `set-access-url.yml` | Re-point a running install at a public URL | `ansible-playbook -i inventory.ini set-access-url.yml -e access_url=http://host` |
 
 ## Configuration
 
@@ -453,6 +457,21 @@ All targets work with any provider (Tart, OrbStack, Vagrant, SSH, Docker, or loc
 - **Application server**: Apache Tomcat 10.1.33
 - **Java**: OpenJDK 17
 - **Handles server**: Optional, runs as systemd service (install with `make install-handles-server`)
+
+### Firewall (UFW)
+
+`install-prerequisites` configures the host firewall via the `ufw` role. SSH (22),
+HTTP (80), HTTPS (443) and the Handle server ports (2641) are always allowed;
+development ports (Tomcat 8080/8000, frontend 4000) and debug ports (Solr 8983,
+PostgreSQL 5432) open depending on the mode. Controlled in `group_vars/all.yml`:
+
+```yaml
+firewall_enabled: true            # set false to skip firewall configuration
+firewall_mode: "development"      # production | development | all
+ufw_default_incoming: "deny"
+ufw_default_outgoing: "allow"
+ufw_default_routed: "deny"
+```
 
 ## Project Structure
 ```
@@ -480,20 +499,31 @@ All targets work with any provider (Tart, OrbStack, Vagrant, SSH, Docker, or loc
     │   └── local-linux.ini       # Local loopback inventory
     ├── group_vars/
     │   └── all.yml               # Global variables
+    ├── callback_plugins/
+    │   └── resume_hint.py         # Friendly "resume from failed task" hint
     ├── roles/                     # Ansible roles
-    │   ├── dspace-build/
-    │   ├── dspace-download/
-    │   ├── dspace-install/
-    │   ├── java/
-    │   ├── postgresql/
-    │   ├── solr/
-    │   └── tomcat/
-    ├── install-prerequisites.yml  # Install stack playbook
-    ├── install-dspace.yml         # Full DSpace playbook
-    ├── dspace-download.yml        # Download only
-    ├── dspace-build.yml          # Build only
-    ├── dspace-install-only.yml   # Install only
-    └── update-system.yml         # System updates
+    │   ├── certbot/               # Let's Encrypt SSL
+    │   ├── dspace/                # DSpace core config (local.cfg)
+    │   ├── dspace-base/           # DSpace base setup
+    │   ├── dspace-build/          # Maven/Ant build
+    │   ├── dspace-download/       # Source download
+    │   ├── dspace-frontend/       # Angular UI + PM2
+    │   ├── dspace-install/        # Install + admin account
+    │   ├── firefox/               # Firefox (testing)
+    │   ├── java/                  # Java 17
+    │   ├── nginx/                 # Reverse proxy
+    │   ├── postgresql/            # PostgreSQL 16
+    │   ├── solr/                  # Apache Solr
+    │   ├── swap/                  # Swap configuration
+    │   ├── tomcat/                # Apache Tomcat
+    │   └── ufw/                   # Host firewall (UFW)
+    ├── install-prerequisites.yml  # Install stack (incl. ufw firewall)
+    ├── install-dspace.yml         # Full DSpace backend
+    ├── install-frontend.yml       # Full Angular frontend
+    ├── install-handles-server.yml # Optional handle server
+    ├── set-access-url.yml         # Re-point install at a public URL
+    ├── update-system.yml          # System updates
+    └── ...                        # granular dspace-*/frontend-* playbooks
 ```
 
 ## Troubleshooting

@@ -59,15 +59,21 @@ This project provides a **provider-agnostic automation framework** for deploying
 │   │   └── local-linux.ini   # Local loopback (ansible_connection=local)
 │   ├── group_vars/
 │   │   └── all.yml           # Global variables (versions, paths, etc.)
+│   ├── callback_plugins/    # resume_hint.py (friendly resume-on-failure hint)
 │   ├── roles/                # Modular Ansible roles
-│   │   ├── dspace-base/      # DSpace core setup
-│   │   ├── dspace-frontend/  # Angular UI setup
+│   │   ├── dspace-base/      # DSpace base setup
+│   │   ├── dspace/           # DSpace core config (local.cfg)
+│   │   ├── dspace-download/  # Source download
+│   │   ├── dspace-build/     # Maven/Ant build
+│   │   ├── dspace-install/   # Install + admin account
+│   │   ├── dspace-frontend/  # Angular UI + PM2
 │   │   ├── java/             # Java installation
 │   │   ├── postgresql/       # Database setup
 │   │   ├── solr/             # Search engine setup
 │   │   ├── tomcat/           # Application server
 │   │   ├── nginx/            # Web server & reverse proxy
 │   │   ├── certbot/          # SSL certificates (Let's Encrypt)
+│   │   ├── ufw/              # Host firewall (UFW)
 │   │   ├── firefox/          # Firefox browser (for testing)
 │   │   └── swap/             # Swap configuration
 │   └── playbooks/
@@ -146,7 +152,7 @@ make frontend-github BRANCH=dspace-9_x
 - `tail-logs` - Follow DSpace logs
 - `backup-db` - Create database backup
 - `frontend-restart` - Restart Angular UI
-- `frontend-logs` - View PM2 logs
+- `frontend-logs` - Follow PM2 logs live (Ctrl+C to stop)
 - `remove-frontend` - Clean frontend removal
 
 ### Access (open in browser)
@@ -180,7 +186,21 @@ tomcat_version: "10.1.33"
 nodejs_version: "20"
 domain_name: "dspace-server.localnet"
 ssl_enabled: false
+# Firewall (UFW) — applied by the ufw role during install-prerequisites
+firewall_enabled: true        # set false to skip firewall configuration
+firewall_mode: "development"  # production | development | all
+# Frontend REST endpoint (browser + SSR target); overridden by set-access-url
+dspace_rest_ssl: "{{ ssl_enabled }}"
+dspace_rest_host: "{{ domain_name }}"
+dspace_rest_port: "{{ 443 if ssl_enabled | bool else 80 }}"
 ```
+
+### Firewall (UFW)
+- `roles/ufw/` configures the host firewall, wired into `install-prerequisites`.
+- Always-open: SSH 22, HTTP 80, HTTPS 443, Handle 2641. `development` mode also
+  opens Tomcat 8080/8000 + frontend 4000; `all` mode also opens Solr 8983 +
+  PostgreSQL 5432 (debug). Controlled by `firewall_enabled` / `firewall_mode` /
+  `ufw_default_*` in `group_vars/all.yml`.
 
 ## Provider Details
 
