@@ -702,6 +702,7 @@ Modify VM settings in the Makefile:
 
 Additional guides are available in the `docs/` directory:
 
+- [Data Migration Guide](docs/data-migration.md) - Move an existing DSpace installation (database, assetstore, statistics, config) onto a fresh server built with this repo
 - [Self-Submission Guide (English)](docs/self-submission-guide.rst) - Comprehensive guide for configuring and using self-submission in DSpace 9
 - [Self-Submission Guide (Polski)](docs/self-submission-guide-pl.rst) - Przewodnik konfiguracji i używania samodzielnego przesyłania w DSpace 9
 
