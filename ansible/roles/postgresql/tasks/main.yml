@@ -36,6 +36,10 @@
     state: started
     enabled: true
 
+# The postgres-becoming tasks below rely on the DEFAULT become_method (sudo).
+# Do NOT pin become_method to 'ansible.builtin.sudo': ansible-lint's schema
+# prefers the FQCN, but some ansible-core builds (notably CI's) reject the FQCN
+# form at runtime for the postgres become, which breaks these tasks.
 - name: Create DSpace database user
   community.postgresql.postgresql_user:
     name: "{{ postgres_user }}"
@@ -44,7 +48,6 @@
     login_unix_socket: /var/run/postgresql
   become: true
   become_user: postgres
-  become_method: ansible.builtin.sudo
 
 - name: Create DSpace database
   community.postgresql.postgresql_db:
@@ -58,7 +61,6 @@
     login_unix_socket: /var/run/postgresql
   become: true
   become_user: postgres
-  become_method: ansible.builtin.sudo
 
 - name: Grant all privileges to DSpace user on DSpace database
   community.postgresql.postgresql_privs:
@@ -70,7 +72,6 @@
     login_unix_socket: /var/run/postgresql
   become: true
   become_user: postgres
-  become_method: ansible.builtin.sudo
 
 - name: Configure PostgreSQL to accept connections
   ansible.builtin.lineinfile:
