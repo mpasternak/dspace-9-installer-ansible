@@ -557,6 +557,26 @@ sudo -u postgres psql -l
 sudo -u postgres psql -c "\du"
 ```
 
+### Resuming After a Failed Task
+
+If an Ansible run stops on a failed task, the installer prints a friendly hint
+right after the play recap: the exact task that failed and a ready-to-paste
+command to resume from that point using `--start-at-task`, e.g.:
+
+```bash
+# From the project's ansible/ directory
+ansible-playbook -v -i inventory/orbstack.ini install-prerequisites.yml \
+    --start-at-task="Download Solr"
+```
+
+This is handled by the `resume_hint` callback plugin (`ansible/callback_plugins/`).
+
+> **Note:** Resuming from a task only works if that task doesn't depend on
+> something an earlier task set up (a registered variable, a gathered fact, a
+> `set_fact`, etc.). If resuming gives "undefined variable" errors, just re-run
+> the whole step — Ansible is idempotent, so the parts that already succeeded
+> are skipped. The hint shows both commands.
+
 ### Complete Reset
 
 #### For Tart VM

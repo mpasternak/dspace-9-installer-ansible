@@ -296,6 +296,16 @@ make tail-logs         # Backend
 make frontend-logs     # Frontend
 ```
 
+### Resuming a Failed Run
+- On any failed Ansible run, the `resume_hint` callback plugin
+  (`ansible/callback_plugins/resume_hint.py`, enabled via `ansible.cfg`) prints
+  the failed task name plus a ready-to-paste `--start-at-task=...` command after
+  the play recap.
+- `--start-at-task` matches the bare task name or the `role : task` form (see
+  `play_iterator.py`). Resuming is safe only when the task doesn't rely on
+  variables/facts registered by earlier (now-skipped) tasks; otherwise re-run
+  the whole idempotent playbook. The hint shows both commands.
+
 ## Important Considerations
 - Minimum 4GB RAM (8GB recommended) for target systems
 - Frontend build requires significant resources
