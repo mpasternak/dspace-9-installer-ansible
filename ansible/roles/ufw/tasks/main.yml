@@ -1,0 +1,175 @@
+---
+- name: Check if UFW is installed
+  package_facts:
+    manager: apt
+  when: ansible_os_family == "Debian"
+
+- name: Install UFW
+  apt:
+    name: ufw
+    state: present
+    update_cache: yes
+  when: "'ufw' not in ansible_facts.packages"
+
+- name: Configure UFW default policies
+  ufw:
+    direction: "{{ item.direction }}"
+    policy: "{{ item.policy }}"
+  loop:
+    - { direction: 'incoming', policy: '{{ ufw_default_incoming }}' }
+    - { direction: 'outgoing', policy: '{{ ufw_default_outgoing }}' }
+    - { direction: 'routed', policy: '{{ ufw_default_routed }}' }
+  notify: reload ufw
+  when: firewall_enabled | default(true)
+
+- name: Allow SSH traffic (port 22)
+  ufw:
+    rule: allow
+    port: '22'
+    proto: tcp
+    comment: 'SSH access'
+  notify: reload ufw
+  when: firewall_enabled | default(true)
+
+- name: Allow HTTP traffic (port 80)
+  ufw:
+    rule: allow
+    port: '80'
+    proto: tcp
+    comment: 'HTTP web server'
+  notify: reload ufw
+  when: firewall_enabled | default(true)
+
+- name: Allow HTTPS traffic (port 443)
+  ufw:
+    rule: allow
+    port: '443'
+    proto: tcp
+    comment: 'HTTPS web server'
+  notify: reload ufw
+  when: firewall_enabled | default(true)
+
+- name: Allow DSpace Handles Server (port 2641 TCP) - Production mode
+  ufw:
+    rule: allow
+    port: '2641'
+    proto: tcp
+    comment: 'DSpace Handles Server TCP'
+  notify: reload ufw
+  when: firewall_enabled | default(true)
+
+- name: Allow DSpace Handles Server (port 2641 UDP) - Production mode
+  ufw:
+    rule: allow
+    port: '2641'
+    proto: udp
+    comment: 'DSpace Handles Server UDP'
+  notify: reload ufw
+  when: firewall_enabled | default(true)
+
+- name: Allow Tomcat port (8080) - Development mode
+  ufw:
+    rule: allow
+    port: '{{ tomcat_port }}'
+    proto: tcp
+    comment: 'Tomcat application server'
+  notify: reload ufw
+  when:
+    - firewall_enabled | default(true)
+    - firewall_mode == 'development' or firewall_mode == 'all'
+
+- name: Allow alternative Tomcat port (8000) - Development mode
+  ufw:
+    rule: allow
+    port: '8000'
+    proto: tcp
+    comment: 'Alternative Tomcat port'
+  notify: reload ufw
+  when:
+    - firewall_enabled | default(true)
+    - firewall_mode == 'development' or firewall_mode == 'all'
+
+- name: Allow frontend port (4000) - Development mode
+  ufw:
+    rule: allow
+    port: '{{ dspace_frontend_port }}'
+    proto: tcp
+    comment: 'DSpace Angular frontend'
+  notify: reload ufw
+  when:
+    - firewall_enabled | default(true)
+    - firewall_mode == 'development' or firewall_mode == 'all'
+
+- name: Allow Solr port (8983) - All mode for debugging
+  ufw:
+    rule: allow
+    port: '{{ solr_port }}'
+    proto: tcp
+    comment: 'Solr search engine'
+  notify: reload ufw
+  when:
+    - firewall_enabled | default(true)
+    - firewall_mode == 'all'
+
+- name: Allow PostgreSQL port (5432) - All mode for debugging
+  ufw:
+    rule: allow
+    port: '{{ postgres_port }}'
+    proto: tcp
+    comment: 'PostgreSQL database'
+  notify: reload ufw
+  when:
+    - firewall_enabled | default(true)
+    - firewall_mode == 'all'
+
+- name: Check current UFW status
+  command: ufw status verbose
+  register: ufw_status
+  changed_when: false
+  failed_when: false
+
+- name: Display UFW status before enabling
+  debug:
+    var: ufw_status.stdout_lines
+  when: firewall_enabled | default(true)
+
+- name: Enable UFW firewall
+  ufw:
+    state: enabled
+  when:
+    - firewall_enabled | default(true)
+    - "'Status: inactive' in ufw_status.stdout"
+
+- name: Verify UFW is active
+  command: ufw status
+  register: ufw_check
+  changed_when: false
+  failed_when: ufw_check.rc != 0
+
+- name: Display firewall configuration summary
+  debug:
+    msg:
+      - "Firewall (UFW) Configuration:"
+      - "Status: {{ 'Active' if 'Status: active' in ufw_check.stdout else 'Inactive' }}"
+      - "Mode: {{ firewall_mode | default('development') }}"
+      - "Allowed ports:"
+      - "  - 22 (SSH) - Always allowed"
+      - "  - 80 (HTTP) - Always allowed"
+      - "  - 443 (HTTPS) - Always allowed"
+      - "  - 2641 (Handles Server TCP/UDP) - Always allowed"
+      - "{% if firewall_mode == 'development' or firewall_mode == 'all' %}  - {{ tomcat_port }} (Tomcat) - Development mode{% endif %}"
+      - "{% if firewall_mode == 'development' or firewall_mode == 'all' %}  - 8000 (Alt Tomcat) - Development mode{% endif %}"
+      - "{% if firewall_mode == 'development' or firewall_mode == 'all' %}  - {{ dspace_frontend_port }} (Frontend) - Development mode{% endif %}"
+      - "{% if firewall_mode == 'all' %}  - {{ solr_port }} (Solr) - Debug mode{% endif %}"
+      - "{% if firewall_mode == 'all' %}  - {{ postgres_port }} (PostgreSQL) - Debug mode{% endif %}"
+      - ""
+      - "To change firewall mode, set firewall_mode in group_vars/all.yml"
+      - "Options: production, development, all"
+  when: firewall_enabled | default(true)
+
+- name: Display firewall disabled message
+  debug:
+    msg:
+      - "Firewall (UFW) is disabled in configuration"
+      - "To enable, set firewall_enabled: true in group_vars/all.yml"
+  when: not (firewall_enabled | default(true))

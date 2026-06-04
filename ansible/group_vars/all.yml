@@ -133,3 +133,10 @@ snakeoil_cert_country: "US"
 snakeoil_cert_state: "State"
 snakeoil_cert_locality: "City"
 snakeoil_cert_organization: "DSpace Development"
+
+# Firewall configuration (UFW)
+firewall_enabled: true  # Set to false to disable firewall configuration
+firewall_mode: "development"  # Options: "production", "development", "all"
+ufw_default_incoming: "deny"  # Default policy for incoming traffic
+ufw_default_outgoing: "allow"  # Default policy for outgoing traffic
+ufw_default_routed: "deny"  # Default policy for routed traffic
