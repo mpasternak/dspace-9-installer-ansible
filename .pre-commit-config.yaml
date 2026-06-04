@@ -1,0 +1,27 @@
+# Pre-commit hooks. Install with:  pre-commit install
+# Run on demand with:               pre-commit run --all-files
+#
+# ansible-lint runs as a local hook (cd ansible && ansible-lint) so the project
+# roles resolve -- the upstream hook runs from the repo root, where roles/dspace
+# can't find roles/dspace-base. Requires ansible-lint + collections installed
+# locally (pip install ansible-lint && ansible-galaxy collection install -r
+# ansible/requirements.yml).
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-merge-conflict
+      - id: check-yaml
+        # mkdocs.yml uses a custom !!python tag that the generic loader rejects.
+        exclude: ^mkdocs\.yml$
+
+  - repo: local
+    hooks:
+      - id: ansible-lint
+        name: ansible-lint (from ansible/)
+        entry: bash -c 'cd ansible && ansible-lint --offline'
+        language: system
+        pass_filenames: false
+        files: ^ansible/.*\.(ya?ml)$

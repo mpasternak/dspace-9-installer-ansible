@@ -3,16 +3,12 @@
 # This includes all sub-tasks in sequence
 
 - name: Create frontend user
-  include_tasks: user.yml
-
+  ansible.builtin.include_tasks: user.yml
 - name: Install prerequisites (Node.js, PM2, build tools)
-  include_tasks: prerequisites.yml
-
+  ansible.builtin.include_tasks: prerequisites.yml
 - name: Download and extract DSpace Angular source
-  include_tasks: download.yml
-
+  ansible.builtin.include_tasks: download.yml
 - name: Configure DSpace Angular frontend
-  include_tasks: config.yml
-
+  ansible.builtin.include_tasks: config.yml
 - name: Build and deploy DSpace Angular frontend
-  include_tasks: build.yml
+  ansible.builtin.include_tasks: build.yml

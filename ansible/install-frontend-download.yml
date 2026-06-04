@@ -1,34 +1,34 @@
 ---
 - name: Download and Extract DSpace Angular Frontend
   hosts: dspace_servers
-  become: yes
+  become: true
 
   pre_tasks:
     - name: Check if Node.js is installed
-      command: which node
+      ansible.builtin.command: which node
       register: node_check
       failed_when: false
       changed_when: false
 
     - name: Fail if prerequisites not installed
-      fail:
+      ansible.builtin.fail:
         msg: "Node.js is not installed. Please run 'make install-frontend-prerequisites' first"
       when: node_check.rc != 0
 
   tasks:
     - name: Include download tasks
-      include_role:
+      ansible.builtin.include_role:
         name: dspace-frontend
         tasks_from: download
 
   post_tasks:
     - name: Verify download
-      stat:
+      ansible.builtin.stat:
         path: "{{ dspace_frontend_source_dir }}/package.json"
       register: package_json
 
     - name: Display download status
-      debug:
+      ansible.builtin.debug:
         msg:
           - "================================================"
           - " Frontend Source Downloaded!"

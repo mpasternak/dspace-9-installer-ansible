@@ -37,23 +37,23 @@
     - name: "Backend: set dspace.ui.url (local.cfg)"
       ansible.builtin.lineinfile:
         path: "{{ dspace_install_dir }}/config/local.cfg"
-        regexp: '^\s*dspace\.ui\.url\s*='
+        regexp: "^\\s*dspace\\.ui\\.url\\s*="
         line: "dspace.ui.url = {{ dspace_ui_url }}"
-      notify: restart tomcat
+      notify: Restart tomcat
 
     - name: "Backend: set dspace.server.url (local.cfg)"
       ansible.builtin.lineinfile:
         path: "{{ dspace_install_dir }}/config/local.cfg"
-        regexp: '^\s*dspace\.server\.url\s*='
+        regexp: "^\\s*dspace\\.server\\.url\\s*="
         line: "dspace.server.url = {{ dspace_server_url }}"
-      notify: restart tomcat
+      notify: Restart tomcat
 
     - name: "Backend: set REST CORS allowed origins (local.cfg)"
       ansible.builtin.lineinfile:
         path: "{{ dspace_install_dir }}/config/local.cfg"
-        regexp: '^\s*rest\.cors\.allowed-origins\s*='
+        regexp: "^\\s*rest\\.cors\\.allowed-origins\\s*="
         line: "rest.cors.allowed-origins = {{ dspace_ui_url }}"
-      notify: restart tomcat
+      notify: Restart tomcat
 
     - name: "Frontend: re-render config.prod.yml with the new REST endpoint"
       ansible.builtin.template:
@@ -61,8 +61,8 @@
         dest: "{{ dspace_frontend_config_dir }}/config.prod.yml"
         owner: "{{ frontend_user }}"
         group: "{{ frontend_group }}"
-        mode: '0644'
-      notify: restart dspaceui
+        mode: "0644"
+      notify: Restart dspaceui
 
     - name: Summary
       ansible.builtin.debug:
@@ -74,12 +74,12 @@
           - "Tomcat + frontend restart via handlers (≈30-60s)."
 
   handlers:
-    - name: restart tomcat
+    - name: Restart tomcat
       ansible.builtin.systemd:
         name: tomcat
         state: restarted
 
-    - name: restart dspaceui
+    - name: Restart dspaceui
       become: true
       become_user: "{{ frontend_user }}"
       ansible.builtin.shell: |

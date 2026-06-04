@@ -1,7 +1,7 @@
 ---
 - name: Install DSpace Backend
   hosts: dspace_servers
-  become: yes
+  become: true
 
   pre_tasks:
     # Load version-coupled overrides (Java 21 for DSpace 10, Java 17 for 9.x).
@@ -12,20 +12,20 @@
     - name: Check if prerequisites are installed
       block:
         - name: Check Java
-          command: java -version
+          ansible.builtin.command: java -version
           register: java_installed
           changed_when: false
           failed_when: false
 
         - name: Check PostgreSQL
-          systemd:
+          ansible.builtin.systemd:
             name: postgresql
             state: started
           register: pg_installed
           failed_when: false
 
         - name: Check Solr
-          uri:
+          ansible.builtin.uri:
             url: "http://localhost:{{ solr_port }}/solr/#/admin/ping"
             method: GET
             status_code: 200
@@ -33,14 +33,14 @@
           failed_when: false
 
         - name: Check Tomcat
-          wait_for:
+          ansible.builtin.wait_for:
             port: "{{ tomcat_port }}"
             timeout: 5
           register: tomcat_installed
           failed_when: false
 
         - name: Fail if prerequisites not installed
-          fail:
+          ansible.builtin.fail:
             msg: "Prerequisites not installed. Please run 'make install-prerequisites' first"
           when: >
             java_installed.rc != 0 or
@@ -53,7 +53,7 @@
 
   post_tasks:
     - name: Restart services
-      systemd:
+      ansible.builtin.systemd:
         name: "{{ item }}"
         state: restarted
       with_items:
@@ -62,7 +62,7 @@
         - tomcat
 
     - name: Wait for services to be ready
-      wait_for:
+      ansible.builtin.wait_for:
         port: "{{ item }}"
         delay: 10
         timeout: 60
@@ -72,7 +72,7 @@
         - "{{ tomcat_port }}"
 
     - name: Test DSpace backend
-      uri:
+      ansible.builtin.uri:
         url: "{{ dspace_server_url }}/api"
         method: GET
         status_code: 200
@@ -81,10 +81,10 @@
       retries: 3
       delay: 10
       until: dspace_test.status == 200
-      ignore_errors: yes
+      ignore_errors: true
 
     - name: Display installation complete message
-      debug:
+      ansible.builtin.debug:
         msg:
           - "================================================"
           - " DSpace {{ dspace_version }} Installation Complete!"

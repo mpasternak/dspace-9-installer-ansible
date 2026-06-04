@@ -1,58 +1,59 @@
 ---
 - name: Build and Deploy DSpace Angular Frontend
   hosts: dspace_servers
-  become: yes
+  become: true
 
   pre_tasks:
     - name: Check if configuration exists
-      stat:
+      ansible.builtin.stat:
         path: "{{ dspace_frontend_config_dir }}/config.prod.yml"
       register: config_check
 
     - name: Fail if not configured
-      fail:
+      ansible.builtin.fail:
         msg: "Frontend configuration not found. Please run 'make install-frontend-config' first"
       when: not config_check.stat.exists
 
   tasks:
     - name: Include build tasks
-      include_role:
+      ansible.builtin.include_role:
         name: dspace-frontend
         tasks_from: build
 
   post_tasks:
     - name: Include nginx role for proxy setup
-      include_role:
+      ansible.builtin.include_role:
         name: nginx
 
     - name: Ensure nginx is reloaded
-      systemd:
+      ansible.builtin.systemd:
         name: nginx
         state: reloaded
 
     - name: Display PM2 process status
-      command: pm2 list
+      ansible.builtin.command: pm2 list
+      become: true
       become_user: "{{ frontend_user }}"
       register: pm2_status
       changed_when: false
 
     - name: Show PM2 status
-      debug:
+      ansible.builtin.debug:
         var: pm2_status.stdout_lines
 
     - name: Test nginx proxy to frontend
-      uri:
+      ansible.builtin.uri:
         url: "http://{{ domain_name }}/"
         method: GET
         status_code: 200
         timeout: 30
         follow_redirects: all
       register: nginx_test
-      ignore_errors: yes
+      ignore_errors: true
       when: domain_name != "dspace.example.com"
 
     - name: Display build complete message
-      debug:
+      ansible.builtin.debug:
         msg:
           - "================================================"
           - " Frontend Build and Deployment Complete!"

@@ -1,0 +1,28 @@
+# ansible-lint configuration
+# https://ansible.readthedocs.io/projects/lint/configuring/
+#
+# Target the strict "production" profile. Run from the ansible/ directory so the
+# project roles (roles/dspace imports roles/dspace-base, ...) resolve:
+#     make lint           # -> cd ansible && ansible-lint
+# Required collections are listed in ansible/requirements.yml.
+profile: production
+
+exclude_paths:
+  - .github/
+  - docs/
+  - mkdocs.yml
+  - README.md
+  - MIGRATION.md
+
+offline: true
+
+skip_list:
+  # Roles use hyphenated names (dspace-base, dspace-build, dspace-download,
+  # dspace-frontend, dspace-install) as an established convention. Renaming them
+  # would churn every playbook/role reference (import_role, roles:, tags) for no
+  # functional gain, so we keep the names and skip this rule.
+  - role-name
+  # Some role-scoped vars are intentionally shared across roles -- e.g. jvm_arch
+  # is set by the java role and consumed by the tomcat templates -- so a
+  # role-name prefix would be misleading and break the cross-role references.
+  - var-naming[no-role-prefix]

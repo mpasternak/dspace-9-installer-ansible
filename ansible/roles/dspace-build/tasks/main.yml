@@ -1,6 +1,6 @@
 ---
 - name: Install DSpace build dependencies
-  apt:
+  ansible.builtin.apt:
     name:
       - maven
       - ant
@@ -10,33 +10,35 @@
       - curl
       - wget
     state: present
-    update_cache: yes
+    update_cache: true
 
 - name: Create local.cfg from template
-  template:
+  ansible.builtin.template:
     src: local.cfg.j2
     dest: "{{ dspace_source_dir_versioned }}/dspace/config/local.cfg"
     owner: "{{ dspace_user }}"
     group: "{{ dspace_group }}"
-    mode: '0640'
-    backup: yes
+    mode: "0640"
+    backup: true
 
 - name: Set Maven memory options
-  lineinfile:
+  ansible.builtin.lineinfile:
     path: /etc/environment
     line: 'MAVEN_OPTS="{{ maven_opts }}"'
-    create: yes
+    create: true
+    mode: "0644"
     state: present
 
 - name: Set Ant memory options
-  lineinfile:
+  ansible.builtin.lineinfile:
     path: /etc/environment
     line: 'ANT_OPTS="{{ ant_opts }}"'
-    create: yes
+    create: true
+    mode: "0644"
     state: present
 
 - name: Source environment and build DSpace with Maven
-  shell: |
+  ansible.builtin.shell: |
     source /etc/environment
     source /etc/profile.d/java.sh 2>/dev/null || true
     if [ -z "$JAVA_HOME" ]; then
@@ -51,13 +53,14 @@
   args:
     chdir: "{{ dspace_source_dir_versioned }}"
     executable: /bin/bash
-  become: yes
+  become: true
   become_user: "{{ dspace_user }}"
   register: maven_build
+  changed_when: true
   failed_when: maven_build.rc != 0
 
 - name: Run Ant fresh_install
-  shell: |
+  ansible.builtin.shell: |
     source /etc/environment
     source /etc/profile.d/java.sh 2>/dev/null || true
     if [ -z "$JAVA_HOME" ]; then
@@ -72,7 +75,8 @@
   args:
     chdir: "{{ dspace_source_dir_versioned }}/dspace/target/dspace-installer"
     executable: /bin/bash
-  become: yes
+  become: true
   become_user: "{{ dspace_user }}"
   register: ant_install
+  changed_when: true
   failed_when: ant_install.rc != 0

@@ -1,32 +1,32 @@
 ---
 - name: Install DSpace Frontend Prerequisites (Node.js and PM2)
   hosts: dspace_servers
-  become: yes
+  become: true
 
   tasks:
     - name: Include prerequisites tasks
-      include_role:
+      ansible.builtin.include_role:
         name: dspace-frontend
         tasks_from: prerequisites
 
   post_tasks:
     - name: Verify Node.js installation
-      command: node --version
+      ansible.builtin.command: node --version
       register: node_version
       changed_when: false
 
     - name: Verify npm installation
-      command: npm --version
+      ansible.builtin.command: npm --version
       register: npm_version
       changed_when: false
 
     - name: Verify PM2 installation
-      command: pm2 --version
+      ansible.builtin.command: pm2 --version
       register: pm2_version
       changed_when: false
 
     - name: Display installed versions
-      debug:
+      ansible.builtin.debug:
         msg:
           - "================================================"
           - " Frontend Prerequisites Installed!"

@@ -1,12 +1,12 @@
 ---
 - name: Install Firefox from Mozilla APT Repository
   hosts: dspace_servers
-  become: yes
+  become: true
 
   pre_tasks:
     - name: Update apt cache
-      apt:
-        update_cache: yes
+      ansible.builtin.apt:
+        update_cache: true
         cache_valid_time: 3600
 
   roles:
@@ -14,13 +14,13 @@
 
   post_tasks:
     - name: Verify Firefox installation
-      command: firefox --version
+      ansible.builtin.command: firefox --version
       register: firefox_check
       changed_when: false
       failed_when: false
 
     - name: Display installation summary
-      debug:
+      ansible.builtin.debug:
         msg:
           - "Firefox installation completed!"
           - "Firefox version: {{ firefox_check.stdout if firefox_check.rc == 0 else 'Not installed or not in PATH' }}"

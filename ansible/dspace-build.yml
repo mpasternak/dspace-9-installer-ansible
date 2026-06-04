@@ -1,27 +1,27 @@
 ---
 - name: Build DSpace from Source
   hosts: dspace_servers
-  become: yes
+  become: true
 
   pre_tasks:
     - name: Check if source code exists
-      stat:
+      ansible.builtin.stat:
         path: "{{ dspace_source_dir_versioned }}/pom.xml"
       register: source_exists
 
     - name: Fail if source doesn't exist
-      fail:
+      ansible.builtin.fail:
         msg: "DSpace source not found. Please run 'make dspace-download' first"
       when: not source_exists.stat.exists
 
     - name: Check Java
-      command: java -version
+      ansible.builtin.command: java -version
       register: java_installed
       changed_when: false
       failed_when: false
 
     - name: Fail if Java not installed
-      fail:
+      ansible.builtin.fail:
         msg: "Java not installed. Please run 'make install-prerequisites' first"
       when: java_installed.rc != 0
 
@@ -31,7 +31,7 @@
 
   post_tasks:
     - name: Display build complete message
-      debug:
+      ansible.builtin.debug:
         msg:
           - "================================================"
           - " DSpace {{ dspace_version }} Build Complete!"

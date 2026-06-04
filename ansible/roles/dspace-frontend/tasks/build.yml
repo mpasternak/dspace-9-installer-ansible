@@ -3,17 +3,19 @@
 
 # Install dependencies and build
 - name: Install npm dependencies
-  npm:
+  community.general.npm:
     path: "{{ dspace_frontend_source_dir }}"
     state: present
+  become: true
   become_user: "{{ frontend_user }}"
   environment:
     NODE_OPTIONS: "--max-old-space-size=4096"
 
 - name: Build DSpace Angular for production
-  command: npm run build:prod
+  ansible.builtin.command: npm run build:prod
   args:
     chdir: "{{ dspace_frontend_source_dir }}"
+  become: true
   become_user: "{{ frontend_user }}"
   environment:
     NODE_OPTIONS: "--max-old-space-size=4096"
@@ -23,29 +25,29 @@
 
 # Configure PM2 systemd service
 - name: Create PM2 systemd service file
-  template:
+  ansible.builtin.template:
     src: dspaceui.service.j2
     dest: /etc/systemd/system/dspaceui.service
     owner: root
     group: root
-    mode: '0644'
-  become: yes
+    mode: "0644"
+  become: true
 
 - name: Reload systemd daemon
-  systemd:
-    daemon_reload: yes
-  become: yes
+  ansible.builtin.systemd:
+    daemon_reload: true
+  become: true
 
 - name: Enable and start PM2 service
-  systemd:
+  ansible.builtin.systemd:
     name: dspaceui
-    enabled: yes
+    enabled: true
     state: started
-  become: yes
+  become: true
 
 # Verification
 - name: Wait for frontend to be ready
-  wait_for:
+  ansible.builtin.wait_for:
     port: "{{ dspace_frontend_port }}"
     host: localhost
     delay: 10
@@ -53,7 +55,7 @@
   register: frontend_ready
 
 - name: Test frontend endpoint
-  uri:
+  ansible.builtin.uri:
     url: "http://localhost:{{ dspace_frontend_port }}/"
     method: GET
     status_code: 200
@@ -62,10 +64,10 @@
   retries: 3
   delay: 10
   until: frontend_test.status == 200
-  ignore_errors: yes
+  ignore_errors: true
 
 - name: Display frontend status
-  debug:
+  ansible.builtin.debug:
     msg:
       - "DSpace Frontend Status:"
       - "  URL: http://localhost:{{ dspace_frontend_port }}"

@@ -4,7 +4,7 @@
 # Include configuration (provider selection and common variables)
 include config.mk
 
-.PHONY: help info show-available-providers configure-developer-machine build-vm start-vm stop-vm destroy-vm ssh ssh-copy-id vm-status
+.PHONY: help info show-available-providers lint configure-developer-machine build-vm start-vm stop-vm destroy-vm ssh ssh-copy-id vm-status
 .PHONY: hosts-add hosts-remove hosts-check
 .PHONY: update-apt install-prerequisites install-dspace install-dspace-all set-access-url
 .PHONY: migrate-plan migrate-from
@@ -69,6 +69,9 @@ show-available-providers: ## Show which providers are usable on THIS machine
 	done
 	@echo ""
 	@echo "Use:  PROVIDER=<name> make <target>      (default: $(PROVIDER), change in config.mk)"
+
+lint: ## Run ansible-lint on the playbooks/roles (profile: production)
+	@cd $(ANSIBLE_PLAYBOOK_DIR) && ansible-lint --offline
 
 # VM/Host Management (delegates to provider)
 configure-developer-machine: ## Configure developer machine and initialize VM/host

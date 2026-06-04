@@ -1,96 +1,102 @@
 ---
 - name: Check if running in Docker container
-  stat:
+  ansible.builtin.stat:
     path: /.dockerenv
   register: dockerenv_check
 
 - name: Check for Docker in cgroup (alternative detection)
-  shell: cat /proc/1/cgroup | grep -q docker
+  ansible.builtin.shell:
+    cmd: |
+      set -o pipefail
+      cat /proc/1/cgroup | grep -q docker
+    executable: /bin/bash
   register: cgroup_docker_check
   failed_when: false
   changed_when: false
 
 - name: Set Docker detection fact
-  set_fact:
+  ansible.builtin.set_fact:
     is_docker: "{{ dockerenv_check.stat.exists or cgroup_docker_check.rc == 0 }}"
 
 - name: Database initialization sequence
   block:
     - name: Get database info
-      command: "{{ dspace_install_dir }}/bin/dspace database info"
-      become: yes
+      ansible.builtin.command: "{{ dspace_install_dir }}/bin/dspace database info"
+      become: true
       become_user: "{{ dspace_user }}"
       register: db_info
       changed_when: false
       failed_when: false
 
     - name: Display database info
-      debug:
+      ansible.builtin.debug:
         msg: "{{ db_info.stdout_lines }}"
       when: db_info.stdout_lines is defined
 
     - name: Test database connection
-      command: "{{ dspace_install_dir }}/bin/dspace database test"
-      become: yes
+      ansible.builtin.command: "{{ dspace_install_dir }}/bin/dspace database test"
+      become: true
       become_user: "{{ dspace_user }}"
       register: db_test
       changed_when: false
       failed_when: false
 
     - name: Display database test results
-      debug:
+      ansible.builtin.debug:
         msg: "{{ db_test.stdout_lines }}"
       when: db_test.stdout_lines is defined
 
     - name: Run database migration (first pass - ignore errors)
-      command: "{{ dspace_install_dir }}/bin/dspace database migrate"
-      become: yes
+      ansible.builtin.command: "{{ dspace_install_dir }}/bin/dspace database migrate"
+      become: true
       become_user: "{{ dspace_user }}"
       register: db_migrate_first
-      ignore_errors: yes
+      ignore_errors: true
       changed_when: true
 
     - name: Display first migration attempt results
-      debug:
+      ansible.builtin.debug:
         msg:
           - "First migration attempt completed (errors ignored if any)"
           - "Return code: {{ db_migrate_first.rc }}"
       when: db_migrate_first is defined
 
     - name: Run database migration (second pass - must succeed)
-      command: "{{ dspace_install_dir }}/bin/dspace database migrate"
-      become: yes
+      ansible.builtin.command: "{{ dspace_install_dir }}/bin/dspace database migrate"
+      become: true
       become_user: "{{ dspace_user }}"
       register: db_migrate_second
+      changed_when: true
       failed_when: db_migrate_second.rc != 0
 
     - name: Display final migration results
-      debug:
+      ansible.builtin.debug:
         msg: "Database migration completed successfully"
       when: db_migrate_second.rc == 0
 
 - name: Copy Solr cores to Solr installation
-  shell: cp -R {{ dspace_install_dir }}/solr/* /var/solr/data/
-  become: yes
+  ansible.builtin.shell: cp -R {{ dspace_install_dir }}/solr/* /var/solr/data/
+  become: true
+  changed_when: true
   notify: restart solr
   tags: solr_cores
 
 - name: Set Solr cores ownership
-  file:
+  ansible.builtin.file:
     path: /var/solr/data
     owner: "{{ solr_user }}"
     group: "{{ solr_group }}"
-    recurse: yes
+    recurse: true
 
 - name: Check PostgreSQL service status
-  systemd:
+  ansible.builtin.systemd:
     name: postgresql
     state: started
   register: postgres_status
 
 - name: Verify database connectivity
-  command: "{{ dspace_install_dir }}/bin/dspace database test"
-  become: yes
+  ansible.builtin.command: "{{ dspace_install_dir }}/bin/dspace database test"
+  become: true
   become_user: "{{ dspace_user }}"
   register: db_test_before_admin
   changed_when: false
@@ -99,32 +105,32 @@
   until: db_test_before_admin.rc == 0
 
 - name: Create DSpace administrator account
-  command: >
+  ansible.builtin.command: >
     {{ dspace_install_dir }}/bin/dspace create-administrator
     -e "{{ dspace_admin_email }}"
     -f "{{ dspace_admin_firstname }}"
     -l "{{ dspace_admin_lastname }}"
     -p "{{ dspace_admin_password }}"
-  become: yes
+  become: true
   become_user: "{{ dspace_user }}"
   register: create_admin
+  changed_when: true
 
 - name: Deploy DSpace server webapp via Tomcat context
-  copy:
+  ansible.builtin.copy:
     content: |
       <?xml version='1.0'?>
       <Context docBase="{{ dspace_install_dir }}/webapps/server"/>
     dest: "{{ tomcat_home }}/conf/Catalina/localhost/server.xml"
     owner: "{{ tomcat_user }}"
     group: "{{ tomcat_group }}"
-    mode: '0644'
+    mode: "0644"
   notify: restart tomcat
 
 - name: Flush handlers to restart services
-  meta: flush_handlers
-
+  ansible.builtin.meta: flush_handlers
 - name: Wait for Tomcat to be fully started
-  wait_for:
+  ansible.builtin.wait_for:
     port: "{{ tomcat_port }}"
     host: localhost
     delay: 10
@@ -132,7 +138,7 @@
     state: started
 
 - name: Set up DSpace cron jobs
-  cron:
+  ansible.builtin.cron:
     name: "{{ item.name }}"
     user: "{{ dspace_user }}"
     job: "{{ item.job }}"
@@ -152,7 +158,7 @@
   when: not is_docker
 
 - name: Display DSpace installation info
-  debug:
+  ansible.builtin.debug:
     msg:
       - "DSpace {{ dspace_version }} has been installed successfully!"
       - "Server URL: {{ dspace_server_url }}"

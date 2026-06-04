@@ -2,25 +2,25 @@
 # Configure DSpace Angular frontend
 
 - name: Create production configuration
-  template:
+  ansible.builtin.template:
     src: config.prod.yml.j2
     dest: "{{ dspace_frontend_config_dir }}/config.prod.yml"
     owner: "{{ frontend_user }}"
     group: "{{ frontend_group }}"
-    mode: '0644'
+    mode: "0644"
   notify: restart dspaceui
 
 - name: Create PM2 ecosystem configuration
-  template:
+  ansible.builtin.template:
     src: dspace-ui.json.j2
     dest: "{{ dspace_frontend_source_dir }}/dspace-ui.json"
     owner: "{{ frontend_user }}"
     group: "{{ frontend_group }}"
-    mode: '0644'
+    mode: "0644"
   notify: restart dspaceui
 
 - name: Create symlink to frontend directory
-  file:
+  ansible.builtin.file:
     src: "{{ dspace_frontend_source_dir }}"
     dest: "{{ dspace_frontend_install_dir }}"
     state: link

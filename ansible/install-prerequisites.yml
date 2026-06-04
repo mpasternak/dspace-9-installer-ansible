@@ -1,7 +1,7 @@
 ---
 - name: Install DSpace Prerequisites
   hosts: dspace_servers
-  become: yes
+  become: true
 
   pre_tasks:
     # Load version-coupled overrides (Java 21 for DSpace 10, Java 17 for 9.x).
@@ -10,27 +10,31 @@
       ansible.builtin.include_vars: "vars/profiles/{{ dspace_version.split('.')[0] }}.yml"
 
     - name: Check if running in Docker container
-      stat:
+      ansible.builtin.stat:
         path: /.dockerenv
       register: dockerenv_check
 
     - name: Check for Docker in cgroup (alternative detection)
-      shell: cat /proc/1/cgroup | grep -q docker
+      ansible.builtin.shell:
+        cmd: |
+          set -o pipefail
+          cat /proc/1/cgroup | grep -q docker
+        executable: /bin/bash
       register: cgroup_docker_check
       failed_when: false
       changed_when: false
 
     - name: Set Docker detection fact
-      set_fact:
+      ansible.builtin.set_fact:
         is_docker: "{{ dockerenv_check.stat.exists or cgroup_docker_check.rc == 0 }}"
 
     - name: Update apt cache
-      apt:
-        update_cache: yes
+      ansible.builtin.apt:
+        update_cache: true
         cache_valid_time: 3600
 
     - name: Install basic packages
-      apt:
+      ansible.builtin.apt:
         name:
           - software-properties-common
           - ca-certificates
@@ -45,7 +49,7 @@
         state: present
 
     - name: Install optional interactive packages (skip in CI/Docker)
-      apt:
+      ansible.builtin.apt:
         name:
           - vim
           - htop
@@ -53,24 +57,25 @@
           - links
         state: present
       when: lookup('env', 'CI') != 'true'
-      ignore_errors: yes
+      # Optional convenience packages; a failure here must not abort the install.
+      failed_when: false
 
     - name: Set timezone
-      timezone:
+      community.general.timezone:
         name: "{{ timezone }}"
 
     - name: Generate locale
-      locale_gen:
+      community.general.locale_gen:
         name: "{{ locale }}"
         state: present
 
     - name: Set default locale
-      command: update-locale LANG={{ locale }}
+      ansible.builtin.command: update-locale LANG={{ locale }}
       changed_when: false
 
   tasks:
     - name: Setup swap (skip in Docker)
-      include_role:
+      ansible.builtin.include_role:
         name: swap
       when: not is_docker
 
@@ -85,38 +90,38 @@
 
   post_tasks:
     - name: Verify Java installation
-      command: java -version
+      ansible.builtin.command: java -version
       register: java_check
       changed_when: false
 
     - name: Verify PostgreSQL is running
-      systemd:
+      ansible.builtin.systemd:
         name: postgresql
         state: started
       register: pg_status
 
     - name: Verify Solr is accessible
-      uri:
+      ansible.builtin.uri:
         url: "http://localhost:{{ solr_port }}/solr/#/admin/ping"
         method: GET
         status_code: 200
       register: solr_check
 
     - name: Verify Tomcat is running
-      wait_for:
+      ansible.builtin.wait_for:
         port: "{{ tomcat_port }}"
         delay: 5
         timeout: 30
       register: tomcat_check
 
     - name: Verify Nginx is running
-      systemd:
+      ansible.builtin.systemd:
         name: nginx
         state: started
       register: nginx_status
 
     - name: Display installation summary
-      debug:
+      ansible.builtin.debug:
         msg:
           - "Prerequisites installed successfully!"
           - "Java: Installed"

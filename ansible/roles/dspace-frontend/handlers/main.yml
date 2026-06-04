@@ -1,33 +1,37 @@
 ---
-- name: restart dspaceui
-  shell: |
+- name: Restart dspaceui
+  ansible.builtin.shell: |
     pm2 restart {{ pm2_app_name }} || pm2 start {{ dspace_frontend_source_dir }}/dspace-ui.json
+  become: true
   become_user: "{{ frontend_user }}"
   environment:
     PATH: "/usr/bin:/bin:/usr/local/bin"
   register: restart_result
   changed_when: "'restarted' in restart_result.stdout or 'launched' in restart_result.stdout"
 
-- name: reload dspaceui
-  shell: pm2 reload {{ pm2_app_name }}
+- name: Reload dspaceui
+  ansible.builtin.command: pm2 reload {{ pm2_app_name }}
+  become: true
   become_user: "{{ frontend_user }}"
   environment:
     PATH: "/usr/bin:/bin:/usr/local/bin"
   register: reload_result
   changed_when: "'reloaded' in reload_result.stdout"
-  ignore_errors: yes
+  ignore_errors: true
 
-- name: stop dspaceui
-  shell: pm2 stop {{ pm2_app_name }}
+- name: Stop dspaceui
+  ansible.builtin.command: pm2 stop {{ pm2_app_name }}
+  become: true
   become_user: "{{ frontend_user }}"
   environment:
     PATH: "/usr/bin:/bin:/usr/local/bin"
   register: stop_result
   changed_when: "'stopped' in stop_result.stdout"
-  ignore_errors: yes
+  ignore_errors: true
 
-- name: start dspaceui
-  shell: pm2 start {{ dspace_frontend_source_dir }}/dspace-ui.json
+- name: Start dspaceui
+  ansible.builtin.command: pm2 start {{ dspace_frontend_source_dir }}/dspace-ui.json
+  become: true
   become_user: "{{ frontend_user }}"
   environment:
     PATH: "/usr/bin:/bin:/usr/local/bin"

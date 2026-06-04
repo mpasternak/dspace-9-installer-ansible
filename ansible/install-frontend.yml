@@ -1,13 +1,13 @@
 ---
 - name: Install DSpace Frontend (Angular UI) - Complete Installation
   hosts: dspace_servers
-  become: yes
+  become: true
 
   pre_tasks:
     - name: Check if backend is installed
       block:
         - name: Check DSpace backend API
-          uri:
+          ansible.builtin.uri:
             url: "{{ dspace_server_url }}/api"
             method: GET
             status_code: 200
@@ -16,7 +16,7 @@
           failed_when: false
 
         - name: Warn if backend not available
-          debug:
+          ansible.builtin.debug:
             msg:
               - "WARNING: DSpace backend API is not responding at {{ dspace_server_url }}/api"
               - "The frontend will be installed but may not function properly without the backend."
@@ -30,22 +30,23 @@
 
   post_tasks:
     - name: Ensure nginx is reloaded
-      systemd:
+      ansible.builtin.systemd:
         name: nginx
         state: reloaded
 
     - name: Display PM2 process status
-      command: pm2 list
+      ansible.builtin.command: pm2 list
+      become: true
       become_user: "{{ frontend_user }}"
       register: pm2_status
       changed_when: false
 
     - name: Show PM2 status
-      debug:
+      ansible.builtin.debug:
         var: pm2_status.stdout_lines
 
     - name: Test frontend availability
-      uri:
+      ansible.builtin.uri:
         url: "http://localhost:{{ dspace_frontend_port }}/"
         method: GET
         status_code: 200
@@ -54,21 +55,21 @@
       retries: 3
       delay: 10
       until: frontend_test.status == 200
-      ignore_errors: yes
+      ignore_errors: true
 
     - name: Test nginx proxy to frontend
-      uri:
+      ansible.builtin.uri:
         url: "http://{{ domain_name }}/"
         method: GET
         status_code: 200
         timeout: 30
         follow_redirects: all
       register: nginx_test
-      ignore_errors: yes
+      ignore_errors: true
       when: domain_name != "dspace.example.com"
 
     - name: Display installation complete message
-      debug:
+      ansible.builtin.debug:
         msg:
           - "================================================"
           - " DSpace Frontend Installation Complete!"
@@ -95,7 +96,8 @@
           - ""
           - "Service Status:"
           - "  Frontend: {{ 'Running' if frontend_test.status == 200 else 'Not responding (check PM2 logs)' }}"
-          - "  Nginx Proxy: {{ 'Working' if nginx_test.status == 200 else 'Not tested or not working' if nginx_test is defined else 'Not tested (using default domain)' }}"
+          - "  Nginx Proxy: {{ 'Working' if nginx_test.status == 200 else 'Not tested or not working'
+            if nginx_test is defined else 'Not tested (using default domain)' }}"
           - ""
           - "Next Steps:"
           - "  1. Update your DNS to point to this server"

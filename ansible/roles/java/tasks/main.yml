@@ -1,6 +1,6 @@
 ---
 - name: Detect JVM architecture
-  set_fact:
+  ansible.builtin.set_fact:
     jvm_arch: >-
       {%- if ansible_architecture == 'x86_64' -%}
         amd64
@@ -11,55 +11,56 @@
       {%- endif -%}
 
 - name: Install OpenJDK {{ java_version }}
-  apt:
+  ansible.builtin.apt:
     name: "openjdk-{{ java_version }}-jdk"
     state: present
-    update_cache: yes
+    update_cache: true
 
-- name: Install OpenJDK {{ java_version }} Headless
-  apt:
+- name: Install OpenJDK Headless {{ java_version }}
+  ansible.builtin.apt:
     name: "openjdk-{{ java_version }}-jdk-headless"
     state: present
 
 - name: Set JAVA_HOME environment variable
-  lineinfile:
+  ansible.builtin.lineinfile:
     path: /etc/environment
     line: 'JAVA_HOME="/usr/lib/jvm/java-{{ java_version }}-openjdk-{{ jvm_arch }}"'
-    create: yes
+    create: true
+    mode: "0644"
     state: present
 
 - name: Export JAVA_HOME for system-wide use
-  copy:
+  ansible.builtin.copy:
     content: |
       export JAVA_HOME="/usr/lib/jvm/java-{{ java_version }}-openjdk-{{ jvm_arch }}"
       export PATH="$JAVA_HOME/bin:$PATH"
     dest: /etc/profile.d/java.sh
     owner: root
     group: root
-    mode: '0644'
+    mode: "0644"
 
 - name: Add JAVA_HOME to PATH
-  lineinfile:
+  ansible.builtin.lineinfile:
     path: /etc/environment
     line: 'PATH="/usr/lib/jvm/java-{{ java_version }}-openjdk-{{ jvm_arch }}/bin:{{ ansible_env.PATH }}"'
-    regexp: '^PATH='
+    regexp: "^PATH="
     state: present
 
 - name: Set default Java version
-  alternatives:
+  community.general.alternatives:
     name: java
     path: "/usr/lib/jvm/java-{{ java_version }}-openjdk-{{ jvm_arch }}/bin/java"
 
 - name: Set default Javac version
-  alternatives:
+  community.general.alternatives:
     name: javac
     path: "/usr/lib/jvm/java-{{ java_version }}-openjdk-{{ jvm_arch }}/bin/javac"
 
 - name: Verify Java installation
-  command: java -version
+  ansible.builtin.command: java -version
   register: java_version_output
   changed_when: false
 
 - name: Display Java version
-  debug:
+  ansible.builtin.debug:
     var: java_version_output.stderr_lines

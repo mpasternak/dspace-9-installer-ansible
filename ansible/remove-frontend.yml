@@ -1,94 +1,106 @@
 ---
 - name: Remove DSpace Frontend Completely
   hosts: dspace_servers
-  become: yes
+  become: true
 
   vars_prompt:
     - name: confirm_removal
       prompt: "Are you sure you want to remove the DSpace frontend completely? Type 'yes' to confirm"
-      private: no
+      private: false
 
   pre_tasks:
     - name: Verify confirmation
-      fail:
+      ansible.builtin.fail:
         msg: "Frontend removal cancelled by user"
       when: confirm_removal != 'yes'
 
   tasks:
     # Stop and remove PM2 processes
     - name: Check if PM2 process exists
-      shell: pm2 list | grep -q {{ pm2_app_name }}
+      ansible.builtin.shell:
+        cmd: |
+          set -o pipefail
+          pm2 list | grep -q {{ pm2_app_name }}
+        executable: /bin/bash
+      become: true
       become_user: "{{ frontend_user }}"
       register: pm2_exists
       failed_when: false
       changed_when: false
 
     - name: Stop PM2 processes
-      shell: pm2 delete {{ pm2_app_name }}
+      ansible.builtin.command: pm2 delete {{ pm2_app_name }}
+      become: true
       become_user: "{{ frontend_user }}"
       when: pm2_exists.rc == 0
-      ignore_errors: yes
+      changed_when: true
+      # Best-effort cleanup; a missing/already-stopped process must not abort removal.
+      failed_when: false
 
     - name: Kill all PM2 processes
-      shell: pm2 kill
+      ansible.builtin.command: pm2 kill
+      become: true
       become_user: "{{ frontend_user }}"
-      ignore_errors: yes
+      changed_when: true
+      # Best-effort cleanup; PM2 may already be down, which is not an error here.
+      failed_when: false
 
     # Stop and remove systemd service
     - name: Check if dspaceui service exists
-      stat:
+      ansible.builtin.stat:
         path: /etc/systemd/system/dspaceui.service
       register: service_file
 
     - name: Stop dspaceui service
-      systemd:
+      ansible.builtin.systemd:
         name: dspaceui
         state: stopped
-        enabled: no
+        enabled: false
       when: service_file.stat.exists
-      ignore_errors: yes
+      # Best-effort stop; the service may already be inactive during teardown.
+      failed_when: false
 
     - name: Remove dspaceui service file
-      file:
+      ansible.builtin.file:
         path: /etc/systemd/system/dspaceui.service
         state: absent
       when: service_file.stat.exists
 
     - name: Reload systemd daemon
-      systemd:
-        daemon_reload: yes
+      ansible.builtin.systemd:
+        daemon_reload: true
       when: service_file.stat.exists
 
     # Remove frontend directories
     - name: Remove frontend source directory
-      file:
+      ansible.builtin.file:
         path: "{{ dspace_frontend_source_dir }}"
         state: absent
 
     - name: Remove frontend symlink
-      file:
+      ansible.builtin.file:
         path: "{{ dspace_frontend_install_dir }}"
         state: absent
 
     - name: Remove PM2 home directory for frontend user
-      file:
+      ansible.builtin.file:
         path: "/home/{{ frontend_user }}/.pm2"
         state: absent
 
     - name: Remove PM2 log directory
-      file:
+      ansible.builtin.file:
         path: "{{ pm2_log_dir }}"
         state: absent
       when: pm2_log_dir is defined
 
     # Remove nginx configuration for frontend (if exists)
     - name: Check if nginx frontend config exists
-      stat:
+      ansible.builtin.stat:
         path: /etc/nginx/sites-enabled/dspace-frontend
       register: nginx_config
 
     - name: Remove nginx frontend configuration
-      file:
+      ansible.builtin.file:
         path: "{{ item }}"
         state: absent
       loop:
@@ -97,50 +109,54 @@
       when: nginx_config.stat.exists
 
     - name: Reload nginx if config was removed
-      systemd:
+      ansible.builtin.systemd:
         name: nginx
         state: reloaded
       when: nginx_config.stat.exists
-      ignore_errors: yes
+      # Best-effort reload; nginx may not be running during teardown.
+      failed_when: false
 
     # Remove frontend user
     - name: Get list of processes owned by frontend user
-      shell: ps -u {{ frontend_user }} -o pid= 2>/dev/null || true
+      ansible.builtin.shell: ps -u {{ frontend_user }} -o pid= 2>/dev/null || true
       register: user_processes
       changed_when: false
 
     - name: Kill all processes owned by frontend user
-      shell: kill -9 {{ item }}
+      ansible.builtin.command: kill -9 {{ item }}
       loop: "{{ user_processes.stdout_lines }}"
       when: user_processes.stdout_lines | length > 0
-      ignore_errors: yes
+      changed_when: true
+      # Best-effort kill; a process that already exited must not abort removal.
+      failed_when: false
 
     - name: Remove frontend user
-      user:
+      ansible.builtin.user:
         name: "{{ frontend_user }}"
         state: absent
-        remove: yes
-        force: yes
+        remove: true
+        force: true
 
     - name: Remove frontend group
-      group:
+      ansible.builtin.group:
         name: "{{ frontend_group }}"
         state: absent
 
     # Clean up any remaining PM2 files
     - name: Clean up global PM2 files for frontend
-      file:
+      ansible.builtin.file:
         path: "{{ item }}"
         state: absent
       loop:
         - "/home/{{ frontend_user }}"
         - "/var/log/pm2-{{ frontend_user }}.log"
         - "/var/run/pm2-{{ frontend_user }}.pid"
-      ignore_errors: yes
+      # Best-effort cleanup; absent files are expected and not an error here.
+      failed_when: false
 
   post_tasks:
     - name: Display removal complete message
-      debug:
+      ansible.builtin.debug:
         msg:
           - "================================================"
           - " DSpace Frontend Removal Complete!"

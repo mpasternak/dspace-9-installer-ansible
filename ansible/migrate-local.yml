@@ -11,7 +11,7 @@
   hosts: dspace_servers
   become: true
   vars:
-    migrate_mode: run                 # plan | run
+    migrate_mode: run # plan | run
     with_stats: false
     confirm: ""
     existing_assetstore: "{{ existing_dspace_dir }}/assetstore"
@@ -41,7 +41,10 @@
         quiet: true
 
     # ---------- Step 1: inspect ----------
-    - name: "Inspect legacy install"
+    # noqa: risky-shell-pipe -- keeping `set -e` without `set -o pipefail` is
+    # intentional: an empty grep result must yield empty stdout (handled by the
+    # "Require a legacy DB name" assert below), not abort the pipeline.
+    - name: "Inspect legacy install"  # noqa: risky-shell-pipe
       ansible.builtin.shell: |
         set -e
         grep -E '^\s*db\.url' {{ existing_dspace_dir }}/config/local.cfg | head -1 \
@@ -61,7 +64,10 @@
         fail_msg: "Could not parse db.url from {{ existing_dspace_dir }}/config/local.cfg"
         quiet: true
 
-    - name: "Inspect sizes"
+    # noqa: risky-shell-pipe -- adding `set -o pipefail` would change the `du | cut`
+    # fallback semantics (it would emit '?' instead of '' when the path is absent);
+    # this output is display-only, so the original behavior is preserved as-is.
+    - name: "Inspect sizes"  # noqa: risky-shell-pipe
       ansible.builtin.shell: |
         echo "asset=$(du -sh {{ existing_assetstore }} 2>/dev/null | cut -f1 || echo '?')"
         echo "db=$(sudo -u postgres psql -tAc "SELECT pg_size_pretty(pg_database_size('{{ legacy_db_name }}'));" 2>/dev/null || echo '?')"
@@ -76,11 +82,14 @@
         msg:
           - "==== DSpace local migration plan ===="
           - "Legacy install : {{ existing_dspace_dir }}"
-          - "Legacy DB      : {{ legacy_db_name }}  ({{ (_sizes.stdout_lines | select('match','^db=') | first | default('db=?')) | regex_replace('^db=','') }})"
-          - "Legacy asset   : {{ existing_assetstore }}  ({{ (_sizes.stdout_lines | select('match','^asset=') | first | default('asset=?')) | regex_replace('^asset=','') }})"
+          - "Legacy DB      : {{ legacy_db_name }}  ({{ (_sizes.stdout_lines | select('match', '^db=')
+            | first | default('db=?')) | regex_replace('^db=', '') }})"
+          - "Legacy asset   : {{ existing_assetstore }}  ({{ (_sizes.stdout_lines | select('match', '^asset=')
+            | first | default('asset=?')) | regex_replace('^asset=', '') }})"
           - "Target install : {{ dspace_install_dir }}  (DB 'dspace')"
           - "With stats     : {{ with_stats }}"
-          - "Steps: dump DB -> [stats export] -> DROP+restore 'dspace' DB -> copy assetstore -> [stats import] -> database migrate -> index-discovery -b -> restart -> verify"
+          - "Steps: dump DB -> [stats export] -> DROP+restore 'dspace' DB -> copy assetstore -> [stats import] -> database migrate
+            -> index-discovery -b -> restart -> verify"
           - "WARNING: 'run' mode DROPS the target 'dspace' DB and overwrites {{ dspace_install_dir }}/assetstore. The legacy install is only read."
 
     - name: Stop here in plan mode
@@ -104,7 +113,7 @@
       ansible.builtin.file:
         path: "{{ work_dir }}"
         state: directory
-        mode: '0700'
+        mode: "0700"
 
     - name: Ensure rsync is present
       ansible.builtin.apt:
@@ -117,6 +126,7 @@
       ansible.builtin.shell: "set -o pipefail; sudo -u postgres pg_dump {{ legacy_db_name }} | gzip > {{ work_dir }}/db.sql.gz"
       args:
         executable: /bin/bash
+      changed_when: true
 
     # ---------- Step 5: export legacy Solr statistics (opt) ----------
     - name: Export legacy Solr statistics
@@ -132,16 +142,19 @@
 
     - name: Drop target dspace database
       ansible.builtin.command: psql -c "DROP DATABASE IF EXISTS dspace;"
+      become: true
       become_user: postgres
       changed_when: true
 
     - name: Create empty target dspace database
       ansible.builtin.command: psql -c "CREATE DATABASE dspace OWNER {{ _dspace_user }} ENCODING 'UTF8';"
+      become: true
       become_user: postgres
       changed_when: true
 
     - name: Ensure pgcrypto extension
       ansible.builtin.command: psql -d dspace -c "CREATE EXTENSION IF NOT EXISTS pgcrypto;"
+      become: true
       become_user: postgres
       changed_when: true
 
@@ -149,9 +162,13 @@
       ansible.builtin.shell: "set -o pipefail; gunzip -c {{ work_dir }}/db.sql.gz | sudo -u postgres psql -d dspace"
       args:
         executable: /bin/bash
+      changed_when: true
 
     # ---------- Step 7: copy assetstore ----------
-    - name: Copy assetstore into target
+    # noqa: command-instead-of-module -- a raw local rsync (with --delete) is
+    # intentional here; ansible.posix.synchronize targets remote transfers and
+    # would change the copy semantics for this same-host migration.
+    - name: Copy assetstore into target  # noqa: command-instead-of-module
       ansible.builtin.command: "rsync -a --delete {{ existing_assetstore }}/ {{ dspace_install_dir }}/assetstore/"
       changed_when: true
 
@@ -170,6 +187,7 @@
 
     - name: Import Solr statistics
       ansible.builtin.command: "{{ dspace_install_dir }}/bin/dspace solr-import-statistics -i statistics"
+      become: true
       become_user: "{{ _dspace_user }}"
       when: with_stats | bool
       changed_when: true
@@ -177,12 +195,14 @@
     # ---------- Step 9: migrate schema ----------
     - name: Migrate database schema
       ansible.builtin.command: "{{ dspace_install_dir }}/bin/dspace database migrate"
+      become: true
       become_user: "{{ _dspace_user }}"
       changed_when: true
 
     # ---------- Step 10: rebuild search index ----------
     - name: Rebuild discovery index
       ansible.builtin.command: "{{ dspace_install_dir }}/bin/dspace index-discovery -b"
+      become: true
       become_user: "{{ _dspace_user }}"
       changed_when: true
 
@@ -193,7 +213,8 @@
         state: started
 
     - name: Restart frontend (PM2)
-      ansible.builtin.shell: "pm2 restart {{ pm2_app_name | default('dspace-ui') }}"
+      ansible.builtin.command: "pm2 restart {{ pm2_app_name | default('dspace-ui') }}"
+      become: true
       become_user: "{{ frontend_user }}"
       environment:
         PATH: "/usr/bin:/bin:/usr/local/bin"
@@ -202,6 +223,7 @@
     # ---------- Step 12: verify ----------
     - name: Count items in target DB
       ansible.builtin.command: psql -d dspace -tAc "SELECT count(*) FROM item;"
+      become: true
       become_user: postgres
       register: _items
       changed_when: false

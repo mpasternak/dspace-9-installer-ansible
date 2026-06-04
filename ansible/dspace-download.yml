@@ -1,19 +1,19 @@
 ---
 - name: Download DSpace Source
   hosts: dspace_servers
-  become: yes
+  become: true
 
   pre_tasks:
     - name: Ensure prerequisites are installed
       block:
         - name: Check Java
-          command: java -version
+          ansible.builtin.command: java -version
           register: java_installed
           changed_when: false
           failed_when: false
 
         - name: Fail if prerequisites not installed
-          fail:
+          ansible.builtin.fail:
             msg: "Java not installed. Please run 'make install-prerequisites' first"
           when: java_installed.rc != 0
 
@@ -23,7 +23,7 @@
 
   post_tasks:
     - name: Display download complete message
-      debug:
+      ansible.builtin.debug:
         msg:
           - "================================================"
           - " DSpace {{ dspace_version }} Download Complete!"

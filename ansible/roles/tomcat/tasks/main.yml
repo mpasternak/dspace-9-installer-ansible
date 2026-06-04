@@ -1,65 +1,65 @@
 ---
 - name: Create Tomcat group
-  group:
+  ansible.builtin.group:
     name: "{{ tomcat_group }}"
-    system: yes
+    system: true
     state: present
 
 - name: Create Tomcat user
-  user:
+  ansible.builtin.user:
     name: "{{ tomcat_user }}"
     group: "{{ tomcat_group }}"
     home: "{{ tomcat_home }}"
     shell: /bin/false
-    system: yes
+    system: true
     state: present
 
 - name: Create Tomcat directory
-  file:
+  ansible.builtin.file:
     path: "{{ tomcat_home }}"
     state: directory
     owner: "{{ tomcat_user }}"
     group: "{{ tomcat_group }}"
-    mode: '0755'
+    mode: "0755"
 
 - name: Download Tomcat (fast CDN, fall back to archive.apache.org)
   # CDN first for speed, archive fallback so a pinned (possibly superseded)
   # tomcat_version never 404s. See apache_*_base in group_vars/all.yml.
   block:
     - name: Download Tomcat from CDN (dlcdn.apache.org)
-      get_url:
+      ansible.builtin.get_url:
         url: "{{ apache_cdn_base }}/tomcat/tomcat-10/v{{ tomcat_version }}/bin/apache-tomcat-{{ tomcat_version }}.tar.gz"
         dest: "/tmp/apache-tomcat-{{ tomcat_version }}.tar.gz"
-        mode: '0644'
+        mode: "0644"
         timeout: 30
   rescue:
     - name: Download Tomcat from archive.apache.org (fallback)
-      get_url:
+      ansible.builtin.get_url:
         url: "{{ apache_archive_base }}/tomcat/tomcat-10/v{{ tomcat_version }}/bin/apache-tomcat-{{ tomcat_version }}.tar.gz"
         dest: "/tmp/apache-tomcat-{{ tomcat_version }}.tar.gz"
-        mode: '0644'
+        mode: "0644"
 
 - name: Extract Tomcat
-  unarchive:
+  ansible.builtin.unarchive:
     src: "/tmp/apache-tomcat-{{ tomcat_version }}.tar.gz"
     dest: "{{ tomcat_home }}"
-    remote_src: yes
+    remote_src: true
     owner: "{{ tomcat_user }}"
     group: "{{ tomcat_group }}"
     extra_opts: [--strip-components=1]
     creates: "{{ tomcat_home }}/bin/catalina.sh"
 
 - name: Set ownership of Tomcat files
-  file:
+  ansible.builtin.file:
     path: "{{ tomcat_home }}"
     owner: "{{ tomcat_user }}"
     group: "{{ tomcat_group }}"
-    recurse: yes
+    recurse: true
 
 - name: Make scripts executable
-  file:
+  ansible.builtin.file:
     path: "{{ tomcat_home }}/bin/{{ item }}"
-    mode: '0755'
+    mode: "0755"
   with_items:
     - catalina.sh
     - ciphers.sh
@@ -73,44 +73,44 @@
     - version.sh
 
 - name: Create setenv.sh for Tomcat environment variables
-  template:
+  ansible.builtin.template:
     src: setenv.sh.j2
     dest: "{{ tomcat_home }}/bin/setenv.sh"
     owner: "{{ tomcat_user }}"
     group: "{{ tomcat_group }}"
-    mode: '0755'
+    mode: "0755"
 
 - name: Configure Tomcat server.xml
-  template:
+  ansible.builtin.template:
     src: server.xml.j2
     dest: "{{ tomcat_home }}/conf/server.xml"
     owner: "{{ tomcat_user }}"
     group: "{{ tomcat_group }}"
-    mode: '0600'
-    backup: yes
+    mode: "0600"
+    backup: true
   notify: restart tomcat
 
 - name: Configure Tomcat context.xml
-  template:
+  ansible.builtin.template:
     src: context.xml.j2
     dest: "{{ tomcat_home }}/conf/context.xml"
     owner: "{{ tomcat_user }}"
     group: "{{ tomcat_group }}"
-    mode: '0600'
-    backup: yes
+    mode: "0600"
+    backup: true
   notify: restart tomcat
 
 - name: Create Tomcat systemd service file
-  template:
+  ansible.builtin.template:
     src: tomcat.service.j2
     dest: /etc/systemd/system/tomcat.service
     owner: root
     group: root
-    mode: '0644'
+    mode: "0644"
   notify: reload systemd
 
 - name: Remove default webapps
-  file:
+  ansible.builtin.file:
     path: "{{ tomcat_home }}/webapps/{{ item }}"
     state: absent
   with_items:
@@ -121,25 +121,25 @@
     - manager
 
 - name: Create webapps directory if it doesn't exist
-  file:
+  ansible.builtin.file:
     path: "{{ tomcat_home }}/webapps"
     state: directory
     owner: "{{ tomcat_user }}"
     group: "{{ tomcat_group }}"
-    mode: '0755'
+    mode: "0755"
 
 - name: Start and enable Tomcat service
-  systemd:
+  ansible.builtin.systemd:
     name: tomcat
     state: started
-    enabled: yes
-    daemon_reload: yes
+    enabled: true
+    daemon_reload: true
 
 - name: Wait for Tomcat to be ready
-  wait_for:
+  ansible.builtin.wait_for:
     port: "{{ tomcat_port }}"
     delay: 10
     timeout: 60
 
 - name: Ensure handlers are flushed
-  meta: flush_handlers
+  ansible.builtin.meta: flush_handlers

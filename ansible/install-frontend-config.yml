@@ -1,23 +1,23 @@
 ---
 - name: Configure DSpace Angular Frontend
   hosts: dspace_servers
-  become: yes
+  become: true
 
   pre_tasks:
     - name: Check if frontend source exists
-      stat:
+      ansible.builtin.stat:
         path: "{{ dspace_frontend_source_dir }}/package.json"
       register: source_check
 
     - name: Fail if source not downloaded
-      fail:
+      ansible.builtin.fail:
         msg: "Frontend source not found. Please run 'make install-frontend-download' first"
       when: not source_check.stat.exists
 
     - name: Check if backend is installed
       block:
         - name: Check DSpace backend API
-          uri:
+          ansible.builtin.uri:
             url: "{{ dspace_server_url }}/api"
             method: GET
             status_code: 200
@@ -26,7 +26,7 @@
           failed_when: false
 
         - name: Warn if backend not available
-          debug:
+          ansible.builtin.debug:
             msg:
               - "WARNING: DSpace backend API is not responding at {{ dspace_server_url }}/api"
               - "The frontend configuration will be created but may not function properly without the backend."
@@ -35,13 +35,13 @@
 
   tasks:
     - name: Include configuration tasks
-      include_role:
+      ansible.builtin.include_role:
         name: dspace-frontend
         tasks_from: config
 
   post_tasks:
     - name: Verify configuration files
-      stat:
+      ansible.builtin.stat:
         path: "{{ item }}"
       register: config_files
       loop:
@@ -50,7 +50,7 @@
         - "{{ dspace_frontend_install_dir }}"
 
     - name: Display configuration status
-      debug:
+      ansible.builtin.debug:
         msg:
           - "================================================"
           - " Frontend Configuration Complete!"

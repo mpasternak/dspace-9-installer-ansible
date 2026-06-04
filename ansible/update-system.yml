@@ -1,66 +1,70 @@
 ---
 - name: Update and upgrade Ubuntu system
   hosts: dspace_servers
-  become: yes
+  become: true
   tasks:
     - name: Check if running in Docker container
-      stat:
+      ansible.builtin.stat:
         path: /.dockerenv
       register: dockerenv_check
 
     - name: Check for Docker in cgroup (alternative detection)
-      shell: cat /proc/1/cgroup | grep -q docker
+      ansible.builtin.shell:
+        cmd: |
+          set -o pipefail
+          cat /proc/1/cgroup | grep -q docker
+        executable: /bin/bash
       register: cgroup_docker_check
       failed_when: false
       changed_when: false
 
     - name: Set Docker detection fact
-      set_fact:
+      ansible.builtin.set_fact:
         is_docker: "{{ dockerenv_check.stat.exists or cgroup_docker_check.rc == 0 }}"
 
     - name: Update apt cache
-      apt:
-        update_cache: yes
+      ansible.builtin.apt:
+        update_cache: true
         cache_valid_time: 3600
 
     - name: Perform dist-upgrade
-      apt:
+      ansible.builtin.apt:
         upgrade: dist
-        autoremove: yes
-        autoclean: yes
+        autoremove: true
+        autoclean: true
 
     - name: Set hostname to match domain name
-      hostname:
+      ansible.builtin.hostname:
         name: "{{ domain_name.split('.')[0] }}"
       when:
         - domain_name is defined
         - not is_docker
 
     - name: Add domain name to /etc/hosts
-      lineinfile:
+      ansible.builtin.lineinfile:
         path: /etc/hosts
-        regexp: '^127\.0\.0\.1\s+{{ domain_name }}'
+        regexp: "^127\\.0\\.0\\.1\\s+{{ domain_name }}"
         line: '127.0.0.1 {{ domain_name }} {{ domain_name.split(".")[0] }}'
-        insertafter: '^127\.0\.0\.1\s+localhost'
+        insertafter: "^127\\.0\\.0\\.1\\s+localhost"
         state: present
       when:
         - domain_name is defined
         - not is_docker
 
     - name: Display Docker environment notice
-      debug:
+      ansible.builtin.debug:
         msg: "Running in Docker container - skipping hostname configuration"
       when:
         - domain_name is defined
         - is_docker
 
     - name: Check if reboot is required
-      stat:
+      ansible.builtin.stat:
         path: /var/run/reboot-required
       register: reboot_required_file
 
     - name: Reboot the server if required
-      reboot:
+      ansible.builtin.reboot:
         msg: "Reboot initiated by Ansible after system updates"
         connect_timeout: 5
         reboot_timeout: 600

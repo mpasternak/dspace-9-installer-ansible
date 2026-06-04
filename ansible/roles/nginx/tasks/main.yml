@@ -1,110 +1,111 @@
 ---
 - name: Install Nginx and SSL packages
-  apt:
+  ansible.builtin.apt:
     name:
       - nginx
       - ssl-cert
       - ca-certificates
     state: present
-    update_cache: yes
+    update_cache: true
 
 - name: Remove default Nginx site
-  file:
+  ansible.builtin.file:
     path: /etc/nginx/sites-enabled/default
     state: absent
   notify: reload nginx
 
 - name: Create Nginx configuration
-  template:
+  ansible.builtin.template:
     src: nginx.conf.j2
     dest: /etc/nginx/nginx.conf
     owner: root
     group: root
-    mode: '0644'
-    backup: yes
+    mode: "0644"
+    backup: true
   notify: reload nginx
 
 - name: Create DSpace site configuration
-  template:
+  ansible.builtin.template:
     src: dspace-site.conf.j2
     dest: /etc/nginx/sites-available/dspace
     owner: root
     group: root
-    mode: '0644'
+    mode: "0644"
   notify: reload nginx
 
 - name: Enable DSpace site
-  file:
+  ansible.builtin.file:
     src: /etc/nginx/sites-available/dspace
     dest: /etc/nginx/sites-enabled/dspace
     state: link
   notify: reload nginx
 
 - name: Create directory for SSL certificates
-  file:
+  ansible.builtin.file:
     path: /etc/nginx/ssl
     state: directory
     owner: root
     group: root
-    mode: '0755'
+    mode: "0755"
 
 - name: Generate snakeoil certificate
+  when: use_snakeoil | default(true)
+
   block:
     - name: Check if snakeoil certificate exists
-      stat:
+      ansible.builtin.stat:
         path: "{{ snakeoil_cert_path }}"
       register: snakeoil_cert
 
     - name: Generate self-signed certificate
-      command: >
+      ansible.builtin.command: >
         openssl req -x509 -nodes -days 3650 -newkey rsa:2048
         -keyout {{ snakeoil_key_path }}
         -out {{ snakeoil_cert_path }}
-        -subj "/C={{ snakeoil_cert_country }}/ST={{ snakeoil_cert_state }}/L={{ snakeoil_cert_locality }}/O={{ snakeoil_cert_organization }}/CN={{ domain_name }}"
+        -subj "{{ snakeoil_cert_subject }}"
       when: not snakeoil_cert.stat.exists
+      changed_when: true
 
     - name: Set permissions on snakeoil private key
-      file:
+      ansible.builtin.file:
         path: "{{ snakeoil_key_path }}"
         owner: root
         group: ssl-cert
-        mode: '0640'
+        mode: "0640"
       when: not snakeoil_cert.stat.exists
 
     - name: Copy snakeoil certificate to system trust store
-      copy:
+      ansible.builtin.copy:
         src: "{{ snakeoil_cert_path }}"
         dest: "/usr/local/share/ca-certificates/dspace-snakeoil.crt"
-        remote_src: yes
+        remote_src: true
         owner: root
         group: root
-        mode: '0644'
+        mode: "0644"
 
     - name: Update system certificate trust store
-      command: update-ca-certificates
+      ansible.builtin.command: update-ca-certificates
       register: update_ca
       changed_when: "'1 added' in update_ca.stdout"
 
-  when: use_snakeoil | default(true)
-
 - name: Test Nginx configuration
-  command: nginx -t
+  ansible.builtin.command: nginx -t
   register: nginx_test
   changed_when: false
   failed_when: nginx_test.rc != 0
 
 - name: Start and enable Nginx
-  systemd:
+  ansible.builtin.systemd:
     name: nginx
     state: started
-    enabled: yes
-    daemon_reload: yes
+    enabled: true
+    daemon_reload: true
 
 - name: Wait for Nginx to be ready
-  wait_for:
+  ansible.builtin.wait_for:
     port: 80
     delay: 2
     timeout: 30
 
 - name: Ensure handlers are flushed
-  meta: flush_handlers
+  ansible.builtin.meta: flush_handlers

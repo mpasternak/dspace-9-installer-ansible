@@ -1,31 +1,31 @@
 ---
 - name: Ensure unzip is installed for extraction
-  apt:
+  ansible.builtin.apt:
     name:
       - unzip
       - git
     state: present
-    update_cache: yes
+    update_cache: true
 
 - name: Download DSpace release
-  get_url:
+  ansible.builtin.get_url:
     url: "{{ dspace_release_url }}"
     dest: "/tmp/dspace-{{ dspace_version }}.zip"
-    mode: '0644'
+    mode: "0644"
   when: dspace_source_type == "release"
 
 - name: Extract DSpace release
-  unarchive:
+  ansible.builtin.unarchive:
     src: "/tmp/dspace-{{ dspace_version }}.zip"
     dest: "/tmp/"
-    remote_src: yes
+    remote_src: true
     owner: "{{ dspace_user }}"
     group: "{{ dspace_group }}"
     creates: "/tmp/DSpace-dspace-{{ dspace_version }}"
   when: dspace_source_type == "release"
 
 - name: Move extracted DSpace to versioned source directory
-  shell: |
+  ansible.builtin.shell: |
     rm -rf {{ dspace_source_dir_versioned }}/*
     mv /tmp/DSpace-dspace-{{ dspace_version }}/* {{ dspace_source_dir_versioned }}/
     rm -rf /tmp/DSpace-dspace-{{ dspace_version }}
@@ -34,19 +34,19 @@
   when: dspace_source_type == "release"
 
 - name: Set ownership of versioned DSpace source
-  file:
+  ansible.builtin.file:
     path: "{{ dspace_source_dir_versioned }}"
     owner: "{{ dspace_user }}"
     group: "{{ dspace_group }}"
-    recurse: yes
+    recurse: true
   when: dspace_source_type == "release"
 
 - name: Clone DSpace from GitHub
-  git:
+  ansible.builtin.git:
     repo: "{{ dspace_github_repo }}"
     dest: "{{ dspace_source_dir_versioned }}"
     version: "{{ dspace_github_branch }}"
-    force: yes
-  become: yes
+    force: true
+  become: true
   become_user: "{{ dspace_user }}"
   when: dspace_source_type == "github"

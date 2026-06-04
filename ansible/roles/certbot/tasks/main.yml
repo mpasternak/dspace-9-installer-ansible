@@ -1,28 +1,28 @@
 ---
 - name: Install Certbot and Nginx plugin
-  apt:
+  ansible.builtin.apt:
     name:
       - certbot
       - python3-certbot-nginx
     state: present
-    update_cache: yes
+    update_cache: true
 
 - name: Create webroot directory for Certbot
-  file:
+  ansible.builtin.file:
     path: /var/www/html
     state: directory
     owner: www-data
     group: www-data
-    mode: '0755'
+    mode: "0755"
 
 - name: Check if certificate already exists
-  stat:
+  ansible.builtin.stat:
     path: "/etc/letsencrypt/live/{{ domain_name }}/fullchain.pem"
   register: cert_exists
   when: ssl_enabled | default(false)
 
 - name: Stop Nginx for initial certificate generation
-  systemd:
+  ansible.builtin.systemd:
     name: nginx
     state: stopped
   when:
@@ -31,7 +31,7 @@
     - not certbot_webroot_mode | default(false)
 
 - name: Generate certificate using standalone mode
-  command: >
+  ansible.builtin.command: >
     certbot certonly
     --standalone
     --non-interactive
@@ -43,10 +43,11 @@
     - ssl_enabled | default(false)
     - not cert_exists.stat.exists | default(true)
     - not certbot_webroot_mode | default(false)
+  changed_when: true
   notify: restart nginx
 
 - name: Generate certificate using webroot mode
-  command: >
+  ansible.builtin.command: >
     certbot certonly
     --webroot
     --webroot-path /var/www/html
@@ -59,10 +60,11 @@
     - ssl_enabled | default(false)
     - not cert_exists.stat.exists | default(true)
     - certbot_webroot_mode | default(false)
+  changed_when: true
   notify: reload nginx
 
 - name: Start Nginx after certificate generation
-  systemd:
+  ansible.builtin.systemd:
     name: nginx
     state: started
   when:
@@ -71,7 +73,7 @@
     - not certbot_webroot_mode | default(false)
 
 - name: Set up automatic certificate renewal via cron
-  cron:
+  ansible.builtin.cron:
     name: "Certbot renewal"
     user: root
     minute: "0"
@@ -80,41 +82,41 @@
   when: ssl_enabled | default(false)
 
 - name: Create systemd timer for certificate renewal (alternative to cron)
-  template:
+  ansible.builtin.template:
     src: certbot-renew.timer.j2
     dest: /etc/systemd/system/certbot-renew.timer
     owner: root
     group: root
-    mode: '0644'
+    mode: "0644"
   when:
     - ssl_enabled | default(false)
     - certbot_use_systemd_timer | default(false)
   notify: reload systemd
 
 - name: Create systemd service for certificate renewal
-  template:
+  ansible.builtin.template:
     src: certbot-renew.service.j2
     dest: /etc/systemd/system/certbot-renew.service
     owner: root
     group: root
-    mode: '0644'
+    mode: "0644"
   when:
     - ssl_enabled | default(false)
     - certbot_use_systemd_timer | default(false)
   notify: reload systemd
 
 - name: Enable and start certbot renewal timer
-  systemd:
+  ansible.builtin.systemd:
     name: certbot-renew.timer
-    enabled: yes
+    enabled: true
     state: started
-    daemon_reload: yes
+    daemon_reload: true
   when:
     - ssl_enabled | default(false)
     - certbot_use_systemd_timer | default(false)
 
 - name: Test certificate renewal
-  command: certbot renew --dry-run
+  ansible.builtin.command: certbot renew --dry-run
   register: renewal_test
   changed_when: false
   failed_when: renewal_test.rc != 0
@@ -123,4 +125,4 @@
     - cert_exists.stat.exists | default(false)
 
 - name: Ensure handlers are flushed
-  meta: flush_handlers
+  ansible.builtin.meta: flush_handlers

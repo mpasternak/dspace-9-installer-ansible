@@ -1,0 +1,7 @@
+---
+# Ansible collections used by the roles (needed for module resolution + lint).
+# Install with:  ansible-galaxy collection install -r ansible/requirements.yml
+collections:
+  - name: ansible.posix          # sysctl
+  - name: community.general      # ufw, timezone, locale_gen, alternatives
+  - name: community.postgresql   # postgresql_db, postgresql_user, postgresql_privs, postgresql_ext

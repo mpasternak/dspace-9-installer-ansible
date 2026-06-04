@@ -1,10 +1,10 @@
 ---
-- name: restart solr
-  systemd:
+- name: Restart solr
+  ansible.builtin.systemd:
     name: solr
     state: restarted
 
-- name: restart tomcat
-  systemd:
+- name: Restart tomcat
+  ansible.builtin.systemd:
     name: tomcat
     state: restarted
