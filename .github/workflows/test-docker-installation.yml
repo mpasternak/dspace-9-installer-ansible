@@ -18,8 +18,22 @@ name: Test DSpace Installation (Docker)
 on:
   push:
     branches: [ main ]
+    # Docs-only / skill / config-doc changes don't affect the install; skip the
+    # ~30-minute install test for them (ansible/, Makefile, providers/ still run it).
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - '.claude/**'
+      - 'mkdocs.yml'
+      - 'LICENSE'
   pull_request:
     branches: [ main ]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - '.claude/**'
+      - 'mkdocs.yml'
+      - 'LICENSE'
   workflow_dispatch:
     inputs:
       test_type:

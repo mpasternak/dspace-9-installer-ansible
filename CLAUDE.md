@@ -353,6 +353,17 @@ make frontend-logs     # Frontend
 - SSL requires valid domain name for Let's Encrypt
 - Development uses self-signed certificates by default
 
+## Repo skills (Claude Code)
+This repo ships project-scoped Claude Code skills under `.claude/skills/`. They
+are auto-discovered whenever Claude Code runs in this checkout (no install step).
+
+- **`update-dspace`** (`.claude/skills/update-dspace/SKILL.md`) — checks for a
+  newer DSpace stable, pulls the official requirements, compares the
+  Java/Tomcat/Solr/Node matrix against the repo's pins, classifies the upgrade
+  (simple bump vs heavier), and guides the bump + a **fresh-install** validation.
+  Stops early when already up to date, so it is cheap to run periodically.
+  Invoke with `/update-dspace`, or schedule it (e.g. monthly) for cyclic updates.
+
 ## Links
 - [DSpace Documentation](https://wiki.lyrasis.org/display/DSDOC9x)
 - [GitHub Repository](https://github.com/mpasternak/dspace-installer)
