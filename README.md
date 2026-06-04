@@ -110,6 +110,24 @@ File Structure:
 - 20GB+ free disk space
 - Network connectivity for package downloads
 
+### Supported platforms
+
+The Ansible roles currently target **Debian-family Linux only** (apt-based) —
+Debian 12/13 and Ubuntu 20.04+. This is the only family tested in CI and used in
+practice.
+
+**Red Hat family (RHEL / Rocky / AlmaLinux) is not supported yet.** The roles
+assume apt, Debian package names, the PGDG apt repo, UFW, and Debian filesystem
+conventions (e.g. nginx `sites-available/`, PostgreSQL under `/etc/postgresql/`).
+Making the installer distribution-agnostic is entirely feasible — DSpace itself is
+distro-neutral, so the coupling lives only in the OS plumbing layer — but it is
+demand-driven, not a current priority.
+
+Contributions are welcome. If you need RHEL-family (or openSUSE) support, open an
+issue so the demand is visible, or send a PR. The main divergences to expect are
+PostgreSQL setup (`initdb`, data dir, PGDG repo), the nginx config layout, the
+firewall tool (firewalld vs UFW), and SELinux.
+
 ### Optional (for local development with Tart VM)
 - macOS (Intel or Apple Silicon)
 - Homebrew (for installing Tart)
