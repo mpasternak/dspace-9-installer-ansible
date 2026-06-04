@@ -44,7 +44,10 @@ maven_version: "3.8.8"
 ant_version: "1.10.14"
 
 # Solr configuration
-solr_version: "9.9.0"
+# Pinned versions are downloaded from archive.apache.org (see roles/solr),
+# which keeps every release permanently. downloads.apache.org only serves the
+# current releases, so pinned older versions 404 there once superseded.
+solr_version: "9.10.1"
 solr_port: 8983
 solr_home: "/opt/solr"
 solr_user: "solr"

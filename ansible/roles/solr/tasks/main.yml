@@ -15,8 +15,10 @@
     state: present
 
 - name: Download Solr
+  # Use archive.apache.org: it permanently hosts every release, so a pinned
+  # solr_version never 404s. downloads.apache.org only serves current releases.
   get_url:
-    url: "https://downloads.apache.org/solr/solr/{{ solr_version }}/solr-{{ solr_version }}.tgz"
+    url: "https://archive.apache.org/dist/solr/solr/{{ solr_version }}/solr-{{ solr_version }}.tgz"
     dest: "/tmp/solr-{{ solr_version }}.tgz"
     mode: '0644'
 

@@ -1,7 +1,13 @@
 # DSpace Installer Configuration
 # This file contains provider selection and common configuration
 
-# Provider selection (tart, vagrant, or ssh)
+# Provider selection (tart, vagrant, ssh, docker, orbstack, or local-linux)
+#   tart        - macOS native virtualization (default)
+#   vagrant     - cross-platform VM (VirtualBox/VMware)
+#   ssh         - direct connection to an existing Ubuntu/Debian host
+#   docker      - Ubuntu container (mainly for CI)
+#   orbstack    - OrbStack Linux machine on macOS (https://orbstack.dev)
+#   local-linux - install onto THIS Linux machine (loopback, no VM/SSH)
 # Can be overridden via environment variable: PROVIDER=vagrant make <target>
 PROVIDER ?= tart
 

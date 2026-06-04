@@ -1,50 +1,309 @@
-# DSpace 9 Development Framework
+# DSpace 9 Installer - Development Framework
 
 ## Overview
-This framework provides automated setup and management for DSpace 9 frontend and backend development servers using Tart virtualization on macOS.
+This project provides a **provider-agnostic automation framework** for deploying DSpace 9 (digital repository software) to various targets including local VMs, cloud servers, and physical machines. It uses Ansible for configuration management and supports multiple virtualization providers through a clean abstraction layer.
+
+## Key Features
+- **Multi-provider support**: Tart (macOS), OrbStack (macOS), Vagrant (cross-platform), SSH (direct), Docker (CI/CD), local-linux (loopback)
+- **Complete DSpace stack**: Automated installation of backend, frontend, and all prerequisites
+- **Version flexibility**: Deploy specific DSpace versions or build from GitHub branches
+- **Unified interface**: Same Make commands work across all providers
+- **CI/CD integration**: GitHub Actions workflow for automated testing
 
 ## Architecture
-- **Host**: macOS development machine
-- **Virtualization**: Tart (macOS native virtualization)
-- **Guest OS**: Ubuntu Linux VM
-- **Target**: DSpace 9 (frontend and backend servers)
-- **Automation**: Ansible for configuration management
 
-## Prerequisites
-- macOS with Tart installed
-- Ansible installed on host machine
-- Ubuntu VM image for Tart
+### System Components
+```
+┌──────────────────────────────────────┐
+│        Control Machine               │
+│  - Ansible orchestration            │
+│  - Provider abstraction (Makefile)  │
+│  - Configuration management         │
+└─────────────┬────────────────────────┘
+              │ SSH
+              ▼
+┌──────────────────────────────────────┐
+│         Target Systems               │
+│  - Tart VM (macOS native)           │
+│  - Vagrant VM (VirtualBox/VMware)   │
+│  - Docker container (CI testing)    │
+│  - Physical/Cloud servers (SSH)     │
+└──────────────────────────────────────┘
+```
 
-## Components
+### DSpace Stack
+- **Backend**: Java 17, PostgreSQL 16, Apache Solr 9.10.1, Apache Tomcat 10.1.33
+- **Frontend**: Angular UI with Node.js 20 LTS, PM2 process manager
+- **Web Server**: Nginx with reverse proxy configuration
+- **Optional**: Handles server for persistent identifiers
 
-### Configuration Files
-- `ansible.cfg` - Ansible configuration
-- `inventory.ini` - Target hosts inventory
-- `update-system.yml` - System update playbook with automatic reboot support
-- `Makefile` - Build and deployment automation
+## Project Structure
+```
+.
+├── Makefile                    # Main orchestrator (provider-agnostic)
+├── config.mk                   # Provider selection & configuration
+├── providers/                  # Provider implementations
+│   ├── tart.mk                # macOS native virtualization
+│   ├── orbstack.mk            # OrbStack Linux machines (macOS)
+│   ├── vagrant.mk             # Cross-platform VM support
+│   ├── ssh.mk                 # Direct SSH connections
+│   ├── docker.mk              # Docker for CI/CD testing
+│   └── local-linux.mk        # Local Linux loopback (install on self)
+├── ansible/                    # Configuration management
+│   ├── inventory/             # Provider-specific inventories
+│   │   ├── tart.ini          # Dynamic Tart inventory
+│   │   ├── orbstack.ini      # OrbStack inventory (<machine>@orb)
+│   │   ├── vagrant.ini       # Dynamic Vagrant inventory
+│   │   ├── ssh.ini           # SSH hosts inventory
+│   │   ├── docker.ini        # Docker inventory
+│   │   └── local-linux.ini   # Local loopback (ansible_connection=local)
+│   ├── group_vars/
+│   │   └── all.yml           # Global variables (versions, paths, etc.)
+│   ├── roles/                # Modular Ansible roles
+│   │   ├── dspace-base/      # DSpace core setup
+│   │   ├── dspace-frontend/  # Angular UI setup
+│   │   ├── java/             # Java installation
+│   │   ├── postgresql/       # Database setup
+│   │   ├── solr/             # Search engine setup
+│   │   ├── tomcat/           # Application server
+│   │   ├── nginx/            # Web server & reverse proxy
+│   │   ├── certbot/          # SSL certificates (Let's Encrypt)
+│   │   ├── firefox/          # Firefox browser (for testing)
+│   │   └── swap/             # Swap configuration
+│   └── playbooks/
+│       ├── install-prerequisites.yml   # Install stack components
+│       ├── install-dspace.yml         # Complete backend installation
+│       ├── install-frontend.yml       # Complete frontend installation
+│       ├── install-handles-server.yml # Optional handles server
+│       ├── update-system.yml          # System updates with auto-reboot
+│       └── remove-frontend.yml        # Clean frontend removal
+├── .github/workflows/
+│   └── test-docker-installation.yml   # CI/CD pipeline
+├── README.md                   # User documentation
+├── MIGRATION.md               # Migration guide for provider changes
+└── CLAUDE.md                  # This file (developer reference)
+```
 
-### Key Features
-1. **Automated System Updates**: The Ansible playbook updates the Ubuntu system and automatically reboots if required
-2. **VM Management**: Uses Tart for lightweight macOS-native virtualization
-3. **DSpace 9 Support**: Configured for both frontend and backend development
+## Common Workflows
 
-## Usage
+### Quick Installation (Default Provider - Tart)
+```bash
+# Complete stack with frontend
+make build-vm install-complete
 
-### System Updates
-The `update-system.yml` playbook:
-- Updates apt cache
-- Performs dist-upgrade
-- Removes unnecessary packages
-- Automatically reboots if system updates require it
+# Backend only
+make build-vm install-dspace-all
 
-### Development Workflow
-1. Start Tart VM with Ubuntu
-2. Run Ansible playbooks for configuration
-3. Deploy DSpace 9 frontend and backend
-4. Use Make targets for common tasks
+# Access the installation
+make ssh
+```
 
-## Notes
-- The framework checks `/var/run/reboot-required` to determine if a reboot is needed after updates
-- Reboot is handled gracefully with configurable timeouts and connection recovery
-- Suitable for local development environments on macOS machines
-- To verify anything on the server for development, use: `ssh admin@$(tart ip dspace-server)`
+### Provider-Specific Usage
+```bash
+# Vagrant
+PROVIDER=vagrant make build-vm install-complete
+
+# SSH to existing server
+PROVIDER=ssh SSH_HOST=192.168.1.100 make configure-host install-complete
+
+# Docker (mainly for CI)
+PROVIDER=docker make build-vm install-complete
+
+# OrbStack (macOS Linux machine)
+PROVIDER=orbstack make build-vm install-complete
+
+# local-linux (loopback — install onto this Linux machine)
+PROVIDER=local-linux make build-vm install-complete
+```
+
+### Version Management
+```bash
+# Specific DSpace version
+make dspace-version VERSION=9.1
+make frontend-version VERSION=9.1
+
+# GitHub branches
+make dspace-github BRANCH=main
+make frontend-github BRANCH=dspace-9_x
+```
+
+## Key Make Targets
+
+### Setup & Configuration
+- `configure-developer-machine` - Install dependencies and initialize VM/host
+- `build-vm` / `configure-host` - Create VM or validate SSH host
+- `update-apt` - Update system packages via Ansible
+
+### DSpace Installation
+- `install-prerequisites` - Java, PostgreSQL, Solr, Tomcat
+- `install-dspace` - Complete backend installation
+- `install-frontend` - Angular UI installation
+- `install-complete` - Full stack (backend + frontend + nginx)
+- `install-handles-server` - Optional handles server
+
+### Maintenance
+- `check-services` - Status of all DSpace services
+- `tail-logs` - Follow DSpace logs
+- `backup-db` - Create database backup
+- `frontend-restart` - Restart Angular UI
+- `frontend-logs` - View PM2 logs
+- `remove-frontend` - Clean frontend removal
+
+## Configuration Files
+
+### Main Configuration
+- `config.mk` - Provider selection, defaults to Tart
+- `ansible/group_vars/all.yml` - DSpace versions, paths, service configs
+- `ansible/ansible.cfg` - Ansible behavior settings
+
+### Key Variables (ansible/group_vars/all.yml)
+```yaml
+dspace_version: "9.1"
+dspace_install_dir: "/opt/dspace"
+postgres_version: "16"
+java_version: "17"
+solr_version: "9.10.1"
+tomcat_version: "10.1.33"
+nodejs_version: "20"
+domain_name: "dspace-server.localnet"
+ssl_enabled: false
+```
+
+## Provider Details
+
+### Tart (Default - macOS)
+- Native macOS virtualization (M1/M2/Intel)
+- Lightweight, fast VM creation
+- Dynamic inventory via `tart ip` command
+- Automatic /etc/hosts management
+
+### OrbStack (macOS)
+- Fast, lightweight Linux machines on macOS (https://orbstack.dev)
+- Managed with `orbctl` (alias `orb`); created via `orbctl create $(ORBSTACK_IMAGE) $(VM_NAME)` (default `ubuntu:noble`)
+- SSH via OrbStack's auto-generated `orb` host: `ssh <machine>@orb`
+- Inventory uses `ansible_host=orb` with `ansible_user=<machine name>` (OrbStack's `<machine>@orb` syntax → default user with passwordless sudo)
+- OrbStack manages SSH keys (no key copy) and shares host resources dynamically (no CPU/RAM sizing)
+
+### Vagrant (Cross-platform)
+- Works on Windows, macOS, Linux
+- VirtualBox or VMware backend
+- Configurable resources (CPU, RAM)
+- Port forwarding support
+
+### SSH (Production)
+- Direct connection to any Ubuntu/Debian host
+- Works with cloud providers (AWS, Azure, GCP, DigitalOcean)
+- No VM management overhead
+- Requires sudo access
+
+### Docker (CI/CD)
+- Used for GitHub Actions testing
+- Ubuntu 24.04 base image
+- Systemd support for services
+- Automated testing pipeline
+
+### local-linux (Loopback)
+- Installs DSpace onto the machine running `make`, via `ansible_connection=local` (no VM, no SSH)
+- Debian/Ubuntu Linux hosts only — refuses to run on macOS (hence the `-linux` suffix); guard in `provider-install-deps`/`provider-init` checks `uname -s` and `apt-get`
+- Requires passwordless sudo for the current user (checked in `provider-init`); matches the `admin NOPASSWD` convention of the other providers
+- `start-vm`/`stop-vm`/`destroy-vm` are no-ops; `get-ip` returns `127.0.0.1`
+- ⚠️ `build-vm` runs `update-system.yml`, which may upgrade packages and reboot the host — intended for a dedicated target machine
+
+## CI/CD Pipeline
+- **Workflow**: `.github/workflows/test-docker-installation.yml`
+- **Badge**: Shows build status in README
+- **Tests**: Complete installation including frontend
+- **Provider**: Docker with SSH access
+- **Schedule**: Runs on push to main branch
+
+## Development Notes
+
+### SSH Access
+```bash
+# Default credentials (VMs)
+Username: admin
+Password: admin
+
+# SSH to target
+make ssh
+
+# Direct SSH (for debugging)
+ssh admin@$(tart ip dspace-server)  # Tart
+vagrant ssh                          # Vagrant
+ssh user@host                        # SSH provider
+```
+
+### Service Management
+- PostgreSQL: `systemctl status postgresql`
+- Tomcat: `systemctl status tomcat`
+- Solr: `systemctl status solr`
+- Frontend: PM2 manages Node.js process
+- Nginx: `systemctl status nginx`
+
+### File Locations
+- DSpace installation: `/opt/dspace` (symlink to versioned dir)
+- Source code: `/opt/dspace-src` (symlink to versioned dir)
+- Frontend source: `/opt/dspace-angular-src-{version}`
+- Frontend app: `/opt/dspace-angular`
+- Logs: `/opt/dspace/log/`, `/var/log/tomcat/`, `/var/log/pm2/`
+
+### Frontend Architecture
+- Separate user (`dspaceui`) from backend (`dspace`)
+- PM2 process manager for production deployment
+- Cluster mode with configurable instances
+- Systemd integration via `dspace-frontend.service`
+- Nginx reverse proxy to port 4000
+
+### Database Access
+```bash
+# Connect to database
+sudo -u postgres psql -d dspace
+
+# Backup database
+make backup-db
+```
+
+## Testing & Verification
+
+### URLs
+- Frontend UI: `http://dspace-server/`
+- Backend API: `http://dspace-server/server/api`
+- Solr Admin: `http://dspace-server:8983/solr`
+
+### Default Admin Credentials
+- Email: `admin@localhost`
+- Password: `admin`
+
+## Troubleshooting
+
+### Common Issues
+1. **Build failures**: Check Maven memory settings in `group_vars/all.yml`
+2. **Port conflicts**: Ensure ports 8080, 8983, 4000 are free
+3. **VM issues**: Use `make destroy-vm` and rebuild
+4. **Frontend build slow**: Normal, takes 10-15 minutes
+5. **SSL issues**: Check domain_name and certbot settings
+
+### Debug Commands
+```bash
+# Verbose Ansible output
+ANSIBLE_VERBOSE=-vvv make install-dspace
+
+# Check service status
+make check-services
+
+# View logs
+make tail-logs         # Backend
+make frontend-logs     # Frontend
+```
+
+## Important Considerations
+- Minimum 4GB RAM (8GB recommended) for target systems
+- Frontend build requires significant resources
+- First installation downloads ~2GB of dependencies
+- SSL requires valid domain name for Let's Encrypt
+- Development uses self-signed certificates by default
+
+## Links
+- [DSpace Documentation](https://wiki.lyrasis.org/display/DSDOC9x)
+- [GitHub Repository](https://github.com/mpasternak/dspace-9-installer-ansible)
+- [DSpace Community](https://duraspace.org/dspace/)

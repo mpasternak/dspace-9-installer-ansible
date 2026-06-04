@@ -2,11 +2,11 @@
 
 [![Test DSpace Installation (Docker)](https://github.com/mpasternak/dspace-9-installer-ansible/actions/workflows/test-docker-installation.yml/badge.svg)](https://github.com/mpasternak/dspace-9-installer-ansible/actions/workflows/test-docker-installation.yml)
 
-> Provider-agnostic automation framework for installing DSpace 9 with support for Tart VMs, Vagrant, and direct SSH hosts
+> Provider-agnostic automation framework for installing DSpace 9 with support for Tart VMs, OrbStack machines, Vagrant, direct SSH hosts, and local Linux (loopback) installs
 
 ## Overview
 
-This project provides a flexible, provider-agnostic framework for deploying DSpace 9 to various targets. Whether you're using local VMs (Tart on macOS or Vagrant cross-platform) or deploying to physical servers and cloud instances via SSH, this framework handles it all with a consistent interface.
+This project provides a flexible, provider-agnostic framework for deploying DSpace 9 to various targets. Whether you're using local VMs (Tart or OrbStack on macOS, or Vagrant cross-platform), deploying to physical servers and cloud instances via SSH, or installing directly onto the Linux machine you're already on (loopback), this framework handles it all with a consistent interface.
 
 ## TL;DR
 
@@ -26,7 +26,7 @@ make destroy-vm
 
 ## Features
 
-- **Multiple Provider Support**: Choose between Tart (macOS), Vagrant (cross-platform), or direct SSH connections
+- **Multiple Provider Support**: Choose between Tart (macOS), OrbStack (macOS), Vagrant (cross-platform), direct SSH connections, or a local Linux loopback install
 - **Provider Abstraction**: Clean separation between virtualization layer and DSpace operations
 - **Ansible Automation**: Idempotent, repeatable deployments using Ansible playbooks
 - **Complete DSpace Stack**: Automated installation of all prerequisites (Java, PostgreSQL, Solr, Tomcat)
@@ -46,9 +46,8 @@ make destroy-vm
 │             │                        │
 │  ┌──────────▼─────────────────┐      │
 │  │    Provider Abstraction    │      │
-│  │  ┌──────┐ ┌────────┐ ┌────┐│      │
-│  │  │ Tart │ │Vagrant │ │SSH ││      │
-│  │  └──────┘ └────────┘ └────┘│      │
+│  │ Tart · OrbStack · Vagrant  │      │
+│  │ SSH · Docker · local-linux │      │
 │  └──────────┬─────────────────┘      │
 │             │                        │
 │  ┌──────────▼─────────────────┐      │
@@ -62,26 +61,36 @@ make destroy-vm
 │  ┌─────────────────────────────┐     │
 │  │ Tart VM (macOS native)      │     │
 │  ├─────────────────────────────┤     │
+│  │ OrbStack machine (macOS)    │     │
+│  ├─────────────────────────────┤     │
 │  │ Vagrant VM (cross-platform) │     │
 │  ├─────────────────────────────┤     │
 │  │ Physical/Cloud Server       │     │
 │  │ (AWS/Azure/GCP/DigitalOcean)│     │
+│  ├─────────────────────────────┤     │
+│  │ This machine (local Linux)  │     │
 │  └─────────────────────────────┘     │
 └──────────────────────────────────────┘
 
 File Structure:
 .
-├── Makefile              # Main orchestrator
-├── config.mk            # Provider selection
+├── Makefile               # Main orchestrator
+├── config.mk             # Provider selection
 ├── providers/
-│   ├── tart.mk         # Tart operations
-│   ├── vagrant.mk      # Vagrant operations
-│   └── ssh.mk          # SSH operations
+│   ├── tart.mk          # Tart operations (macOS)
+│   ├── orbstack.mk      # OrbStack operations (macOS)
+│   ├── vagrant.mk       # Vagrant operations
+│   ├── ssh.mk           # SSH operations
+│   ├── docker.mk        # Docker operations (CI)
+│   └── local-linux.mk   # Local Linux loopback operations
 └── ansible/
     ├── inventory/
-    │   ├── tart.ini    # Dynamic Tart inventory
-    │   ├── vagrant.ini # Dynamic Vagrant inventory
-    │   └── ssh.ini     # SSH hosts inventory
+    │   ├── tart.ini       # Dynamic Tart inventory
+    │   ├── orbstack.ini   # OrbStack inventory
+    │   ├── vagrant.ini    # Dynamic Vagrant inventory
+    │   ├── ssh.ini        # SSH hosts inventory
+    │   ├── docker.ini     # Docker inventory
+    │   └── local-linux.ini # Local loopback inventory
     └── playbooks/      # DSpace installation
 ```
 
@@ -103,6 +112,15 @@ File Structure:
 - macOS (Intel or Apple Silicon)
 - Homebrew (for installing Tart)
 - Tart virtualization
+
+### Optional (for local development with OrbStack)
+- macOS (Intel or Apple Silicon)
+- [OrbStack](https://orbstack.dev) (`brew install orbstack`)
+
+### Optional (for the local-linux loopback provider)
+- A Debian/Ubuntu Linux host (this is the deployment target itself)
+- Passwordless sudo for the current user
+- Best used on a dedicated machine/VM — see the warning in the loopback section below
 
 ## Quick Start
 
@@ -136,6 +154,53 @@ make ssh
 # Clean up when done
 make destroy-vm
 ```
+
+### Using OrbStack (macOS Linux Machines)
+
+[OrbStack](https://orbstack.dev) runs fast, lightweight Linux machines on macOS.
+OrbStack manages SSH keys automatically and shares host resources dynamically, so
+there is no key-copy or VM-sizing step.
+
+```bash
+# Set OrbStack as provider
+PROVIDER=orbstack make configure-developer-machine
+PROVIDER=orbstack make install-dspace-all
+
+# Or install complete stack with frontend
+PROVIDER=orbstack make install-complete
+
+# Access the machine (OrbStack SSH proxy)
+PROVIDER=orbstack make ssh        # equivalent to: ssh dspace-server@orb
+
+# Clean up when done
+PROVIDER=orbstack make destroy-vm
+
+# Optional: choose a different base image (default: ubuntu:noble)
+PROVIDER=orbstack ORBSTACK_IMAGE=ubuntu:jammy make build-vm
+```
+
+### Using local-linux (Loopback — Install on This Machine)
+
+The `local-linux` provider installs DSpace **onto the Linux machine you're running
+`make` on**, using Ansible's local connection (no VM, no SSH). It is ideal for a
+freshly provisioned Ubuntu/Debian server or VM that *is* the deployment target.
+
+```bash
+# Install the complete stack directly on this machine
+PROVIDER=local-linux make build-vm install-complete
+
+# Or step by step
+PROVIDER=local-linux make build-vm           # validates host (Linux + passwordless sudo)
+PROVIDER=local-linux make install-dspace-all # backend only
+```
+
+> **⚠️ Warning:** This provider targets the local machine. `build-vm` runs
+> `update-system.yml`, which may upgrade packages and **reboot the host**. Use a
+> dedicated machine/VM, not your daily-driver workstation.
+>
+> **Requirements:** a Debian/Ubuntu host and **passwordless sudo** for the current
+> user. On macOS this provider refuses to run (use `tart` or `orbstack` instead) —
+> that's why it's named `local-linux`. `start-vm`/`stop-vm`/`destroy-vm` are no-ops.
 
 ### Using Vagrant (Cross-platform)
 
@@ -178,7 +243,7 @@ PROVIDER=ssh SSH_HOST=ec2-xx-xx-xx-xx.compute.amazonaws.com SSH_USER=ubuntu make
 Edit `config.mk`:
 ```makefile
 # Change default provider
-PROVIDER ?= vagrant  # or tart, ssh
+PROVIDER ?= vagrant  # or tart, orbstack, ssh, docker, local-linux
 ```
 
 ### Provider-Specific Variables
@@ -188,6 +253,20 @@ PROVIDER ?= vagrant  # or tart, ssh
 # In config.mk or environment
 TART_IMAGE=ghcr.io/cirruslabs/ubuntu:latest
 VM_NAME=dspace-server
+```
+
+#### OrbStack Configuration
+```bash
+# In config.mk or environment
+ORBSTACK_IMAGE=ubuntu:noble   # base distro:version (default: ubuntu:noble)
+VM_NAME=dspace-server         # OrbStack machine name
+```
+
+#### local-linux Configuration
+```bash
+# No variables required — the target is the local machine.
+# The current user must have passwordless sudo, and the host must be
+# a Debian/Ubuntu Linux system.
 ```
 
 #### Vagrant Configuration
@@ -257,7 +336,7 @@ make build-vm
 
 ## Available Make Targets
 
-All targets work with any provider (Tart, Vagrant, or SSH). Set provider via `PROVIDER` environment variable or in `config.mk`.
+All targets work with any provider (Tart, OrbStack, Vagrant, SSH, Docker, or local-linux). Set provider via `PROVIDER` environment variable or in `config.mk`.
 
 | Target | Description |
 |--------|-------------|
@@ -269,9 +348,9 @@ All targets work with any provider (Tart, Vagrant, or SSH). Set provider via `PR
 | `configure-host` | Alias for build-vm when using SSH provider |
 | `ssh-copy-id` | Copy SSH keys to VM/host |
 | **VM/Host Management** | |
-| `start-vm` | Start VM (no-op for SSH provider) |
-| `stop-vm` | Stop VM (no-op for SSH provider) |
-| `destroy-vm` | Delete VM (no-op for SSH provider) |
+| `start-vm` | Start VM (no-op for SSH/local-linux providers) |
+| `stop-vm` | Stop VM (no-op for SSH/local-linux providers) |
+| `destroy-vm` | Delete VM (no-op for SSH/local-linux providers) |
 | `vm-status` | Check VM/host status |
 | `ssh` | SSH into VM/host |
 | **DSpace Installation** | |
@@ -323,7 +402,7 @@ All targets work with any provider (Tart, Vagrant, or SSH). Set provider via `PR
 ### DSpace Installation Details
 - **Base directory**: `/opt/dspace`
 - **Database**: PostgreSQL 16
-- **Search engine**: Apache Solr 9.9.0
+- **Search engine**: Apache Solr 9.10.1
 - **Application server**: Apache Tomcat 10.1.33
 - **Java**: OpenJDK 17
 - **Handles server**: Optional, runs as systemd service (install with `make install-handles-server`)
@@ -335,8 +414,11 @@ All targets work with any provider (Tart, Vagrant, or SSH). Set provider via `PR
 ├── config.mk                      # Provider selection and configuration
 ├── providers/                     # Provider implementations
 │   ├── tart.mk                  # Tart VM operations (macOS)
+│   ├── orbstack.mk              # OrbStack machine operations (macOS)
 │   ├── vagrant.mk               # Vagrant VM operations
-│   └── ssh.mk                   # SSH host operations
+│   ├── ssh.mk                   # SSH host operations
+│   ├── docker.mk                # Docker container operations (CI)
+│   └── local-linux.mk           # Local Linux loopback operations
 ├── CLAUDE.md                      # Development notes
 ├── LICENSE                        # MIT License
 ├── README.md                      # This file
@@ -344,8 +426,11 @@ All targets work with any provider (Tart, Vagrant, or SSH). Set provider via `PR
     ├── ansible.cfg                # Ansible configuration
     ├── inventory/                 # Provider-specific inventories
     │   ├── tart.ini              # Dynamic Tart inventory
+    │   ├── orbstack.ini          # OrbStack inventory
     │   ├── vagrant.ini           # Dynamic Vagrant inventory
-    │   └── ssh.ini               # SSH hosts inventory
+    │   ├── ssh.ini               # SSH hosts inventory
+    │   ├── docker.ini            # Docker inventory
+    │   └── local-linux.ini       # Local loopback inventory
     ├── group_vars/
     │   └── all.yml               # Global variables
     ├── roles/                     # Ansible roles
@@ -412,6 +497,35 @@ ssh user@host "lsb_release -a"
 
 # Debug with verbose output
 ANSIBLE_VERBOSE=-vvv PROVIDER=ssh SSH_HOST=your-host make install-dspace
+```
+
+#### OrbStack (macOS)
+```bash
+# Check if OrbStack is installed
+command -v orbctl || brew install orbstack
+
+# List machines and check status
+orbctl list
+PROVIDER=orbstack make vm-status
+
+# Connect manually (OrbStack SSH proxy)
+ssh dspace-server@orb
+
+# Recreate the machine if issues persist
+PROVIDER=orbstack make destroy-vm
+PROVIDER=orbstack make build-vm
+```
+
+#### local-linux (Loopback)
+```bash
+# Must be run ON the Debian/Ubuntu target host (refuses on macOS)
+PROVIDER=local-linux make vm-status
+
+# Verify passwordless sudo (required)
+sudo -n true && echo "OK" || echo "Add: '<user> ALL=(ALL) NOPASSWD:ALL' to /etc/sudoers.d/dspace-installer"
+
+# Debug with verbose output
+ANSIBLE_VERBOSE=-vvv PROVIDER=local-linux make install-dspace
 ```
 
 ### DSpace Installation Issues
@@ -518,4 +632,5 @@ For issues, questions, or suggestions:
 
 - [DSpace](https://duraspace.org/dspace/) community
 - [Tart](https://github.com/cirruslabs/tart) for macOS virtualization
+- [OrbStack](https://orbstack.dev) for fast Linux machines on macOS
 - [Ansible](https://www.ansible.com/) for automation
