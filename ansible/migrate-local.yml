@@ -1,0 +1,213 @@
+---
+# Migrate a live legacy DSpace (on THIS SAME host) into the fresh install
+# provisioned by this repo. All local — no network transfer.
+#
+#   make migrate-plan  EXISTING=/old/dspace
+#   make migrate-from  EXISTING=/old/dspace [WITH_STATS=1] [START_AT="..."] [CONFIRM=yes]
+#
+# The legacy install is only READ (consistent pg_dump snapshot + assetstore copy);
+# only the repo install's empty 'dspace' DB and assetstore are replaced.
+- name: Migrate a local legacy DSpace into the repo install
+  hosts: dspace_servers
+  become: true
+  vars:
+    migrate_mode: run                 # plan | run
+    with_stats: false
+    confirm: ""
+    existing_assetstore: "{{ existing_dspace_dir }}/assetstore"
+    work_dir: /var/tmp/dspace-migrate
+    _dspace_user: "{{ dspace_user | default('dspace') }}"
+    _dspace_group: "{{ dspace_group | default('dspace') }}"
+
+  tasks:
+    - name: Validate EXISTING
+      ansible.builtin.assert:
+        that:
+          - existing_dspace_dir is defined
+          - existing_dspace_dir | length > 0
+          - existing_dspace_dir != dspace_install_dir
+        fail_msg: "Pass EXISTING=/path/to/legacy/dspace (must differ from the repo install at {{ dspace_install_dir }})."
+        quiet: true
+
+    - name: Check legacy local.cfg exists
+      ansible.builtin.stat:
+        path: "{{ existing_dspace_dir }}/config/local.cfg"
+      register: legacy_cfg
+
+    - name: Require legacy local.cfg
+      ansible.builtin.assert:
+        that: legacy_cfg.stat.exists
+        fail_msg: "No local.cfg under {{ existing_dspace_dir }}/config — is that a DSpace home?"
+        quiet: true
+
+    # ---------- Step 1: inspect ----------
+    - name: "Inspect legacy install"
+      ansible.builtin.shell: |
+        set -e
+        grep -E '^\s*db\.url' {{ existing_dspace_dir }}/config/local.cfg | head -1 \
+          | sed -E 's#.*/##; s#\?.*##; s#[[:space:]]*$##'
+      args:
+        executable: /bin/bash
+      register: _legacy_db
+      changed_when: false
+
+    - name: Record legacy DB name
+      ansible.builtin.set_fact:
+        legacy_db_name: "{{ _legacy_db.stdout | trim }}"
+
+    - name: Require a legacy DB name
+      ansible.builtin.assert:
+        that: legacy_db_name | length > 0
+        fail_msg: "Could not parse db.url from {{ existing_dspace_dir }}/config/local.cfg"
+        quiet: true
+
+    - name: "Inspect sizes"
+      ansible.builtin.shell: |
+        echo "asset=$(du -sh {{ existing_assetstore }} 2>/dev/null | cut -f1 || echo '?')"
+        echo "db=$(sudo -u postgres psql -tAc "SELECT pg_size_pretty(pg_database_size('{{ legacy_db_name }}'));" 2>/dev/null || echo '?')"
+      args:
+        executable: /bin/bash
+      register: _sizes
+      changed_when: false
+
+    # ---------- Step 2: plan ----------
+    - name: Migration plan
+      ansible.builtin.debug:
+        msg:
+          - "==== DSpace local migration plan ===="
+          - "Legacy install : {{ existing_dspace_dir }}"
+          - "Legacy DB      : {{ legacy_db_name }}  ({{ (_sizes.stdout_lines | select('match','^db=') | first | default('db=?')) | regex_replace('^db=','') }})"
+          - "Legacy asset   : {{ existing_assetstore }}  ({{ (_sizes.stdout_lines | select('match','^asset=') | first | default('asset=?')) | regex_replace('^asset=','') }})"
+          - "Target install : {{ dspace_install_dir }}  (DB 'dspace')"
+          - "With stats     : {{ with_stats }}"
+          - "Steps: dump DB -> [stats export] -> DROP+restore 'dspace' DB -> copy assetstore -> [stats import] -> database migrate -> index-discovery -b -> restart -> verify"
+          - "WARNING: 'run' mode DROPS the target 'dspace' DB and overwrites {{ dspace_install_dir }}/assetstore. The legacy install is only read."
+
+    - name: Stop here in plan mode
+      ansible.builtin.meta: end_play
+      when: migrate_mode == 'plan'
+
+    # ---------- Step 3: confirm ----------
+    - name: Confirm destructive migration
+      ansible.builtin.pause:
+        prompt: "About to DROP the target 'dspace' DB and overwrite its assetstore. Type 'yes' to proceed"
+      register: _confirm
+      when: confirm != 'yes'
+
+    - name: Abort unless confirmed
+      ansible.builtin.assert:
+        that: (confirm == 'yes') or (_confirm.user_input | default('') == 'yes')
+        fail_msg: "Not confirmed — aborting."
+        quiet: true
+
+    - name: Ensure work dir
+      ansible.builtin.file:
+        path: "{{ work_dir }}"
+        state: directory
+        mode: '0700'
+
+    - name: Ensure rsync is present
+      ansible.builtin.apt:
+        name: rsync
+        state: present
+        update_cache: false
+
+    # ---------- Step 4: dump existing database ----------
+    - name: Dump existing database
+      ansible.builtin.shell: "set -o pipefail; sudo -u postgres pg_dump {{ legacy_db_name }} | gzip > {{ work_dir }}/db.sql.gz"
+      args:
+        executable: /bin/bash
+
+    # ---------- Step 5: export legacy Solr statistics (opt) ----------
+    - name: Export legacy Solr statistics
+      ansible.builtin.command: "{{ existing_dspace_dir }}/bin/dspace solr-export-statistics -i statistics"
+      when: with_stats | bool
+      changed_when: true
+
+    # ---------- Step 6: restore database into target ----------
+    - name: Stop Tomcat (target)
+      ansible.builtin.systemd:
+        name: tomcat
+        state: stopped
+
+    - name: Drop target dspace database
+      ansible.builtin.command: psql -c "DROP DATABASE IF EXISTS dspace;"
+      become_user: postgres
+      changed_when: true
+
+    - name: Create empty target dspace database
+      ansible.builtin.command: psql -c "CREATE DATABASE dspace OWNER {{ _dspace_user }} ENCODING 'UTF8';"
+      become_user: postgres
+      changed_when: true
+
+    - name: Ensure pgcrypto extension
+      ansible.builtin.command: psql -d dspace -c "CREATE EXTENSION IF NOT EXISTS pgcrypto;"
+      become_user: postgres
+      changed_when: true
+
+    - name: Restore database from dump
+      ansible.builtin.shell: "set -o pipefail; gunzip -c {{ work_dir }}/db.sql.gz | sudo -u postgres psql -d dspace"
+      args:
+        executable: /bin/bash
+
+    # ---------- Step 7: copy assetstore ----------
+    - name: Copy assetstore into target
+      ansible.builtin.command: "rsync -a --delete {{ existing_assetstore }}/ {{ dspace_install_dir }}/assetstore/"
+      changed_when: true
+
+    - name: Own target assetstore
+      ansible.builtin.file:
+        path: "{{ dspace_install_dir }}/assetstore"
+        owner: "{{ _dspace_user }}"
+        group: "{{ _dspace_group }}"
+        recurse: true
+
+    # ---------- Step 8: import Solr statistics (opt) ----------
+    - name: Start Solr (target)
+      ansible.builtin.systemd:
+        name: solr
+        state: started
+
+    - name: Import Solr statistics
+      ansible.builtin.command: "{{ dspace_install_dir }}/bin/dspace solr-import-statistics -i statistics"
+      become_user: "{{ _dspace_user }}"
+      when: with_stats | bool
+      changed_when: true
+
+    # ---------- Step 9: migrate schema ----------
+    - name: Migrate database schema
+      ansible.builtin.command: "{{ dspace_install_dir }}/bin/dspace database migrate"
+      become_user: "{{ _dspace_user }}"
+      changed_when: true
+
+    # ---------- Step 10: rebuild search index ----------
+    - name: Rebuild discovery index
+      ansible.builtin.command: "{{ dspace_install_dir }}/bin/dspace index-discovery -b"
+      become_user: "{{ _dspace_user }}"
+      changed_when: true
+
+    # ---------- Step 11: restart ----------
+    - name: Start Tomcat (target)
+      ansible.builtin.systemd:
+        name: tomcat
+        state: started
+
+    - name: Restart frontend (PM2)
+      ansible.builtin.shell: "pm2 restart {{ pm2_app_name | default('dspace-ui') }}"
+      become_user: "{{ frontend_user }}"
+      environment:
+        PATH: "/usr/bin:/bin:/usr/local/bin"
+      changed_when: true
+
+    # ---------- Step 12: verify ----------
+    - name: Count items in target DB
+      ansible.builtin.command: psql -d dspace -tAc "SELECT count(*) FROM item;"
+      become_user: postgres
+      register: _items
+      changed_when: false
+
+    - name: Done
+      ansible.builtin.debug:
+        msg:
+          - "Migration complete. Items in target DB: {{ _items.stdout | trim }}"
+          - "Next: set the access URL ->  make set-access-url URL=http://<this-host>"

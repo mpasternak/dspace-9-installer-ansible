@@ -164,6 +164,13 @@ make frontend-github BRANCH=dspace-9_x
   `config.prod.yml` (`rest` ssl/host/port, now templated from `dspace_rest_*`),
   then restarts Tomcat + frontend. Playbook: `ansible/set-access-url.yml`.
   Browser/SSR/CORS must all agree on one URL or the UI shows "Service Unavailable".
+- `migrate-plan EXISTING=/old/dspace` / `migrate-from EXISTING=...` - Migrate a
+  **same-host live legacy** DSpace into this install (reads its `local.cfg` for DB
+  name/assetstore, drops/restores the `dspace` DB, copies assetstore, `database
+  migrate` + `index-discovery -b`, restarts). Plan mode is read-only; run mode is
+  resumable via `START_AT="<step>"` (reuses the `resume_hint` callback) and gated
+  by a confirm (`CONFIRM=yes` to skip). `WITH_STATS=1` also moves Solr statistics.
+  Playbook: `ansible/migrate-local.yml`. See `docs/data-migration.md`.
 - Host is resolved via the active provider's `provider-get-ip`; override with
   `URL=...`, `BROWSER_PATH=...`, `BROWSER_SCHEME=https`, or `SOLR_PORT=...`.
   Opener: `open` (macOS) / `xdg-open` (Linux) / `wslview` (WSL).

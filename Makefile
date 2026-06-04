@@ -7,6 +7,7 @@ include config.mk
 .PHONY: help info configure-developer-machine build-vm start-vm stop-vm destroy-vm ssh ssh-copy-id vm-status
 .PHONY: hosts-add hosts-remove hosts-check
 .PHONY: update-apt install-prerequisites install-dspace install-dspace-all set-access-url
+.PHONY: migrate-plan migrate-from
 .PHONY: dspace-download dspace-build dspace-install-only dspace-rebuild
 .PHONY: dspace-version dspace-github clean
 .PHONY: open-browser open-api open-solr _open-resolved provider-exec
@@ -188,6 +189,30 @@ set-access-url: ## Set the public access URL (usage: make set-access-url URL=htt
 	@echo ""
 	@echo "✅ Done. Open: $(URL)"
 	@echo "   (Tomcat restarts ~30-60s, so the first page load may be slow.)"
+
+migrate-plan: ## Show a migration plan from a legacy install on the host (EXISTING=/old/dspace)
+	@if [ -z "$(EXISTING)" ]; then \
+		echo "❌ Specify EXISTING=/path/to/legacy/dspace (e.g. make migrate-plan EXISTING=/opt/dspace-old)"; \
+		exit 1; \
+	fi
+	@cd $(ANSIBLE_PLAYBOOK_DIR) && ansible-playbook $(ANSIBLE_VERBOSE) -i $(ANSIBLE_INVENTORY) migrate-local.yml \
+		-e "existing_dspace_dir=$(EXISTING)" -e "migrate_mode=plan"
+
+migrate-from: ## Migrate a legacy install into this one (EXISTING=/old/dspace; opts: WITH_STATS=1 CONFIRM=yes START_AT="step")
+	@if [ -z "$(EXISTING)" ]; then \
+		echo "❌ Specify EXISTING=/path/to/legacy/dspace"; \
+		echo "   Tip: run 'make migrate-plan EXISTING=...' first to preview."; \
+		exit 1; \
+	fi
+	@echo ""
+	@echo "╔══════════════════════════════════════════════════════════╗"
+	@echo "║         Migrating Legacy DSpace -> This Install          ║"
+	@echo "╚══════════════════════════════════════════════════════════╝"
+	@cd $(ANSIBLE_PLAYBOOK_DIR) && ansible-playbook $(ANSIBLE_VERBOSE) -i $(ANSIBLE_INVENTORY) migrate-local.yml \
+		-e "existing_dspace_dir=$(EXISTING)" -e "migrate_mode=run" \
+		$(if $(WITH_STATS),-e with_stats=true) \
+		$(if $(filter yes,$(CONFIRM)),-e confirm=yes) \
+		$(if $(START_AT),--start-at-task="$(START_AT)")
 
 install-prerequisites: ## Install DSpace prerequisites (Java, PostgreSQL, Solr, Tomcat)
 	@echo ""

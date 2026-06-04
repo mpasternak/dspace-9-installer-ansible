@@ -422,6 +422,8 @@ All targets work with any provider (Tart, OrbStack, Vagrant, SSH, Docker, or loc
 | `frontend-status` | Show frontend (PM2) status |
 | `clean-logs` | Clean DSpace logs |
 | `backup-db` | Backup DSpace database |
+| `migrate-plan` | Preview migrating a legacy install on the host (`EXISTING=/old/dspace`) |
+| `migrate-from` | Migrate a legacy install into this one (resumable; `EXISTING=`, `START_AT=`, `WITH_STATS=1`) |
 | `clean` | Remove Emacs backup files (*~, #*#, .#*) |
 
 ## Ansible Playbooks (for any SSH target)
@@ -435,6 +437,7 @@ All targets work with any provider (Tart, OrbStack, Vagrant, SSH, Docker, or loc
 | `dspace-build.yml` | Build DSpace with Maven | `ansible-playbook -i inventory.ini dspace-build.yml` |
 | `dspace-install-only.yml` | Install pre-built DSpace | `ansible-playbook -i inventory.ini dspace-install-only.yml` |
 | `set-access-url.yml` | Re-point a running install at a public URL | `ansible-playbook -i inventory.ini set-access-url.yml -e access_url=http://host` |
+| `migrate-local.yml` | Migrate a same-host legacy install into this one | `ansible-playbook -i inventory.ini migrate-local.yml -e existing_dspace_dir=/old/dspace` |
 
 ## Configuration
 

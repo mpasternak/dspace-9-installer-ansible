@@ -32,6 +32,41 @@ migration lays your data on top of it. The data lives in four places:
 
 ---
 
+## Automated migration (same host, live legacy install)
+
+If the legacy DSpace is **live on the same machine** as the fresh install (its
+database in the local PostgreSQL, its own DSpace home / assetstore / Solr), two
+Make targets automate the whole thing — no manual SQL or rsync:
+
+```bash
+# 1. Preview — reads the legacy install, changes nothing
+make migrate-plan EXISTING=/path/to/legacy/dspace
+
+# 2. Run it (interactive confirmation before anything destructive)
+make migrate-from EXISTING=/path/to/legacy/dspace
+#    Options:
+#      WITH_STATS=1                  also migrate Solr usage statistics
+#      CONFIRM=yes                   skip the interactive confirmation
+#      START_AT="Restore database"   resume from a named step
+```
+
+You only point at the legacy DSpace home; its **DB name and assetstore path are
+read from its `local.cfg`**. The legacy install is only **read** (a consistent
+`pg_dump` snapshot + an assetstore copy); only the fresh install's empty `dspace`
+database and assetstore are replaced, so the operation is reversible on the
+legacy side.
+
+The run is **resumable** — the database dump can be slow, so if a later step
+fails, fix the cause and re-run with `START_AT="<step name>"`. On any failure the
+installer prints the exact resume command for you. Playbook:
+`ansible/migrate-local.yml`.
+
+> This covers the **same-host, live** case. To move to a **different** server, or
+> to restore from **backup files** (no live legacy DB), use the manual runbook
+> below.
+
+---
+
 ## Variant A — Migrate onto a fresh server
 
 Three moves: **(1)** back up the source, **(2)** build a complete clean server
@@ -189,19 +224,24 @@ the provisioning targets is mostly idempotent, but `install-dspace` re-runs
 `create-administrator` and a full rebuild — heavy and risky on a populated
 database, so don't.
 
-**The supported, reliable path is Variant A**: build a clean install and restore
-your data onto it. The restore *replaces* the empty data, so nothing of yours is
-lost.
+**Two supported paths:**
 
-A real "adopt / update existing install" mode — point at an existing `dspace.dir`,
-skip the steps that create users / re-init the DB / create an admin, and reuse the
-existing config and database — is feasible to add but does not exist yet. Open an
-issue (or ask) if you want it.
+- **Same host, live legacy install** → the automated targets above
+  (`make migrate-plan` / `make migrate-from`). This is the realistic
+  "point at the existing install and migrate it" case.
+- **Different server, or restoring from backup files** → Variant A (clean install
+  + restore your data onto it).
+
+What is *not* supported is having the installer **adopt an install in place** —
+point at an existing `dspace.dir` and manage it directly, skipping user/DB
+creation and reusing the existing config and database. That would be a larger
+change to the provisioning roles; open an issue if you need it.
 
 ---
 
 ## Future tooling
 
-Variant A is a good candidate for automation, e.g. `make backup-all` (one tarball
-with DB + assetstore + statistics + config) and `make restore BACKUP=...` (Step 3
-end to end). Not implemented yet — contributions welcome.
+The cross-server Variant A is a candidate for automation, e.g. `make backup-all`
+(one tarball with DB + assetstore + statistics + config) and
+`make restore BACKUP=...`. Not implemented yet — contributions welcome. (The
+same-host case is already automated by `make migrate-from`.)
