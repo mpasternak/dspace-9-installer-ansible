@@ -47,11 +47,14 @@
 
 # Verification
 - name: Wait for frontend to be ready
+  # SSR cold start (Angular bootstrap + PM2 wait_ready) can take a while on
+  # slower hosts / CI; keep this generous so a slow-but-healthy start is not
+  # reported as a failure.
   ansible.builtin.wait_for:
     port: "{{ dspace_frontend_port }}"
     host: localhost
     delay: 10
-    timeout: 60
+    timeout: 180
   register: frontend_ready
 
 - name: Test frontend endpoint

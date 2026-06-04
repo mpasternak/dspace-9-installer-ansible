@@ -187,14 +187,17 @@ hosts-add: ## Add VM IP to /etc/hosts
 		echo "❌ VM is not running or IP not available"; \
 		exit 1; \
 	fi; \
-	echo "📝 Adding/updating hosts entry: $$VM_IP $(DOMAIN_NAME)"; \
-	if grep -q "$(DOMAIN_NAME)" /etc/hosts; then \
-		echo "⚠️  Entry for $(DOMAIN_NAME) already exists in /etc/hosts"; \
-		echo "🔄 Updating existing entry..."; \
-		sudo sed -i.bak "/$(DOMAIN_NAME)/d" /etc/hosts; \
+	if grep -q "$(DOMAIN_NAME).*Managed by dspace" /etc/hosts; then \
+		echo "🔄 Updating existing entry for $(DOMAIN_NAME) -> $$VM_IP"; \
+	else \
+		echo "📝 Adding hosts entry: $$VM_IP $(DOMAIN_NAME)"; \
 	fi; \
+	: "Always drop our managed entry first (matches current + legacy markers),"; \
+	: "then append the fresh one -- idempotent, never duplicates, and the marker"; \
+	: "scope avoids touching a user's own unrelated entry for this domain."; \
+	sudo sed -i.bak "/$(DOMAIN_NAME).*Managed by dspace/d" /etc/hosts; \
 	echo "$$VM_IP $(DOMAIN_NAME) # Managed by dspace-installer" | sudo tee -a /etc/hosts > /dev/null; \
-	echo "✅ Hosts file updated successfully"; \
+	echo "✅ Hosts file updated ($$VM_IP $(DOMAIN_NAME))"; \
 	echo "📌 You can now access DSpace at: http://$(DOMAIN_NAME)"
 
 hosts-remove: ## Remove VM IP from /etc/hosts
@@ -203,8 +206,8 @@ hosts-remove: ## Remove VM IP from /etc/hosts
 		exit 1; \
 	fi
 	@echo "🗑️  Removing hosts entry for $(DOMAIN_NAME)..."
-	@if grep -q "$(DOMAIN_NAME)" /etc/hosts; then \
-		sudo sed -i.bak "/$(DOMAIN_NAME).*Managed by dspace-installer/d" /etc/hosts; \
+	@if grep -q "$(DOMAIN_NAME).*Managed by dspace" /etc/hosts; then \
+		sudo sed -i.bak "/$(DOMAIN_NAME).*Managed by dspace/d" /etc/hosts; \
 		echo "✅ Hosts entry removed"; \
 	else \
 		echo "ℹ️  No entry found for $(DOMAIN_NAME)"; \
