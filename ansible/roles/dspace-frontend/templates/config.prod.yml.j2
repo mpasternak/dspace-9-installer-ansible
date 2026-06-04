@@ -115,10 +115,13 @@ homePage:
     pageSize: 5
 
 # Theme Settings
+# 'name' must be a theme that exists under the frontend source's src/themes/
+# (base, custom, dspace) -- it is NOT the site title. DSpace 10's SSR eagerly
+# reads "<name>-theme.css" at startup, so a non-existent theme name (e.g. the
+# institution name) makes the server crash with ENOENT. Use the default DSpace
+# theme site-wide; swap to 'custom' (and build it) for institutional branding.
 themes:
-  - name: '{{ dspace_name }}'
-    extends: dspace
-    handle: '{{ domain_name }}'
+  - name: dspace
 
 # Language Settings
 languages:
