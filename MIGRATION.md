@@ -4,7 +4,7 @@ This guide helps you migrate from the previous Tart-only setup to the new provid
 
 ## What Changed
 
-The DSpace 9 Installer now supports multiple virtualization providers:
+The DSpace Installer now supports multiple virtualization providers:
 - **Tart** (macOS native virtualization) - default
 - **Vagrant** (cross-platform with VirtualBox/VMware)
 - **SSH** (direct connection to physical/cloud servers)

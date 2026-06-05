@@ -1,9 +1,8 @@
-# DSpace 9 Installer
+# DSpace Installer
 
-A **provider-agnostic automation framework** for deploying [DSpace 9](https://wiki.lyrasis.org/display/DSDOC9x)
-to local VMs, cloud servers, and physical machines. It uses Ansible for
-configuration management and a clean Makefile abstraction so the **same commands
-work across every target**.
+A **provider-agnostic Ansible framework** for deploying DSpace to local VMs,
+cloud servers, CI containers, and physical machines. It uses a clean Makefile
+abstraction so the **same commands work across every target**.
 
 ```bash
 make build-vm install-complete     # build a VM and install the full stack
@@ -20,7 +19,7 @@ server over SSH.
 ## Features
 
 - **Multiple providers** — Tart (macOS), OrbStack (macOS), Vagrant (cross-platform), SSH (any Ubuntu/Debian host), Docker (CI), and `local-linux` (install onto the machine you're on). [See Providers →](providers.md)
-- **Complete stack** — backend (Java 17, PostgreSQL 16, Solr, Tomcat 10) + Angular frontend (Node 20, PM2) + nginx, plus an optional Handle server.
+- **Complete stack** — backend (Java 21 by default, PostgreSQL 16, Solr, Tomcat 10) + Angular frontend (Node 20, PM2) + nginx, plus an optional Handle server.
 - **One interface** — the same `make` targets regardless of provider.
 - **Version flexibility** — pin a DSpace version or build from a GitHub branch.
 - **Operational tooling** — live log following, browser shortcuts, access-URL
@@ -47,7 +46,7 @@ server over SSH.
                │ (SSH / local)
                ▼
 ┌──────────────────────────────────────┐
-│      Target: full DSpace 9 stack     │
+│        Target: full DSpace stack     │
 │  PostgreSQL · Solr · Tomcat · nginx  │
 │  Angular frontend (PM2)              │
 └──────────────────────────────────────┘

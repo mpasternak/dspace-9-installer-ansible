@@ -1,4 +1,4 @@
-# DSpace 9 Installer - Main Makefile
+# DSpace Installer - Main Makefile
 # Provider-agnostic orchestration for DSpace installation
 
 # Include configuration (provider selection and common variables)
@@ -17,7 +17,7 @@ include config.mk
 
 help: ## Display all targets in this Makefile
 	@echo "╔══════════════════════════════════════════════════════════╗"
-	@echo "║           DSpace 9 Installer - Help                      ║"
+	@echo "║           DSpace Installer - Help                        ║"
 	@echo "╚══════════════════════════════════════════════════════════╝"
 	@echo ""
 	@echo "Current Provider: $(PROVIDER)"
@@ -343,9 +343,9 @@ install-dspace-all: ## Install prerequisites and DSpace backend in one command
 	@echo ""
 	@echo "🎉 Complete DSpace backend stack installed successfully!"
 
-dspace-version: ## Install specific DSpace version (usage: make dspace-version VERSION=9.3)
+dspace-version: ## Install specific DSpace version (usage: make dspace-version VERSION=10.0)
 	@if [ -z "$(VERSION)" ]; then \
-		echo "❌ Please specify VERSION (e.g., make dspace-version VERSION=9.3)"; \
+		echo "❌ Please specify VERSION (e.g., make dspace-version VERSION=10.0)"; \
 		exit 1; \
 	fi
 	@echo "📦 Installing DSpace version $(VERSION)..."
@@ -456,9 +456,9 @@ install-complete: ## Complete installation: backend + frontend + nginx
 	@echo "   Backend API: http://$(VM_NAME)/server/api"
 	@echo ""
 
-frontend-version: ## Install specific frontend version (usage: make frontend-version VERSION=9.3)
+frontend-version: ## Install specific frontend version (usage: make frontend-version VERSION=10.0)
 	@if [ -z "$(VERSION)" ]; then \
-		echo "❌ Please specify VERSION (e.g., make frontend-version VERSION=9.3)"; \
+		echo "❌ Please specify VERSION (e.g., make frontend-version VERSION=10.0)"; \
 		exit 1; \
 	fi
 	@echo "📦 Installing DSpace frontend version $(VERSION)..."

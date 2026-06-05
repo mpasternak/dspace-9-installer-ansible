@@ -62,12 +62,12 @@ make install-frontend-build
 
 ```bash
 # A specific released version
-make dspace-version VERSION=9.3
-make frontend-version VERSION=9.3
+make dspace-version VERSION=10.0
+make frontend-version VERSION=10.0
 
 # A GitHub branch
 make dspace-github BRANCH=main
-make frontend-github BRANCH=dspace-9_x
+make frontend-github BRANCH=main
 ```
 
 Or pin `dspace_version` in `ansible/group_vars/all.yml` (see [Configuration](configuration.md)).

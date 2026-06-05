@@ -71,7 +71,7 @@ Run directly against any inventory if you prefer:
 
 | Component | Version / detail |
 |-----------|------------------|
-| Java | OpenJDK 17 |
+| Java | OpenJDK 21 by default; version profiles override this for older DSpace majors |
 | PostgreSQL | 16 |
 | Apache Solr | 9.10.1 |
 | Apache Tomcat | 10.1.55 (backend webapp on :8080) |
@@ -107,5 +107,5 @@ Run directly against any inventory if you prefer:
 
 ## Links
 
-- [DSpace 9 Documentation](https://wiki.lyrasis.org/display/DSDOC9x)
+- [DSpace Documentation](https://wiki.lyrasis.org/display/DSDOC)
 - [GitHub repository](https://github.com/mpasternak/dspace-installer)

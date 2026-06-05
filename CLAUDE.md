@@ -1,7 +1,7 @@
-# DSpace 9 Installer - Development Framework
+# DSpace Installer - Development Framework
 
 ## Overview
-This project provides a **provider-agnostic automation framework** for deploying DSpace 9 (digital repository software) to various targets including local VMs, cloud servers, and physical machines. It uses Ansible for configuration management and supports multiple virtualization providers through a clean abstraction layer.
+This project provides a **provider-agnostic Ansible framework** for deploying DSpace (digital repository software) to various targets including local VMs, cloud servers, CI containers, and physical machines. It supports multiple virtualization and host providers through a clean Makefile abstraction.
 
 ## Key Features
 - **Multi-provider support**: Tart (macOS), OrbStack (macOS), Vagrant (cross-platform), SSH (direct), Docker (CI/CD), local-linux (loopback)
@@ -125,12 +125,12 @@ PROVIDER=local-linux make build-vm install-complete
 ### Version Management
 ```bash
 # Specific DSpace version
-make dspace-version VERSION=9.3
-make frontend-version VERSION=9.3
+make dspace-version VERSION=10.0
+make frontend-version VERSION=10.0
 
 # GitHub branches
 make dspace-github BRANCH=main
-make frontend-github BRANCH=dspace-9_x
+make frontend-github BRANCH=main
 ```
 
 ## Key Make Targets
@@ -365,6 +365,6 @@ are auto-discovered whenever Claude Code runs in this checkout (no install step)
   Invoke with `/update-dspace`, or schedule it (e.g. monthly) for cyclic updates.
 
 ## Links
-- [DSpace Documentation](https://wiki.lyrasis.org/display/DSDOC9x)
+- [DSpace Documentation](https://wiki.lyrasis.org/display/DSDOC)
 - [GitHub Repository](https://github.com/mpasternak/dspace-installer)
 - [DSpace Community](https://duraspace.org/dspace/)
